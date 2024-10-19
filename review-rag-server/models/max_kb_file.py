@@ -1,3 +1,4 @@
+import datetime
 from pydantic import BaseModel
 
 class MaxKbFile(BaseModel):
@@ -11,10 +12,10 @@ class MaxKbFile(BaseModel):
     bucket_name: str
     file_id: str
     target_name: str
-    tags: str
+    tags: dict
     creator: str
-    create_time: str
+    create_time: datetime.datetime
     updater: str
-    update_time: str
-    deleted: bool
+    update_time: datetime.datetime
+    deleted: int
     tenant_id: int

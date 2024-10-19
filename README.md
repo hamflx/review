@@ -10,6 +10,14 @@ docker run --name postgres -e POSTGRES_PASSWORD=she4waeJ_uquahg7goh4aewu -p 5666
 
 ```shell
 cd review-rag-server
-pip3 install sanic sanic-ext pydantic mayim[postgres]
+pip3 install sanic sanic-ext pydantic mayim[postgres] snowflake-id
 python3 main.py
+```
+
+## 运行前端
+
+```shell
+cd review-rag-web
+bun install
+bun run dev
 ```
