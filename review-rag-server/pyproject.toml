@@ -1,0 +1,25 @@
+[project]
+name = "review-rag-server"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "marker-pdf>=0.3.1",
+    "mayim[postgres]>=1.1.0",
+    "psycopg-binary>=3.2.3",
+    "pydantic>=2.9.2",
+    "sanic>=24.6.0",
+    "sanic-ext>=23.12.0",
+    "snowflake-id>=1.0.2",
+    "torch==2.4.1+cu121",
+    "torchaudio==2.4.1+cu121",
+    "torchvision>=0.19.1",
+]
+
+[[tool.uv.index]]
+url = "https://download.pytorch.org/whl/cu121"
+
+[[tool.uv.index]]
+url = "https://pypi.python.org/simple"
+default = true

@@ -9,6 +9,8 @@ from mayim.sql.postgres.executor import PostgresExecutor
 from mayim.sql.postgres.interface import PostgresPool
 from models.max_kb_file import MaxKbFile
 from snowflake import SnowflakeGenerator
+from marker.convert import convert_single_pdf
+from marker.models import load_all_models
 
 gen = SnowflakeGenerator(100)
 
@@ -128,6 +130,11 @@ async def create_new_file_handler(request: Request, executor: ReviewRagPostgresE
         kb_file.deleted,
         kb_file.tenant_id
     )
+    with open('test.pdf', 'wb+') as f:
+        f.write(file.body)
+    model_lst = load_all_models()
+    full_text, images, out_meta = convert_single_pdf('test.pdf', model_lst)
+    print(full_text)
     return json({"success": True})
 
 if __name__ == "__main__":
