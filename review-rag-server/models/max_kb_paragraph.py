@@ -15,4 +15,4 @@ class MaxKbParagraph(BaseModel):
     updater: str
     update_time: datetime.datetime
     deleted: int
-    tenant_id: str
+    tenant_id: int

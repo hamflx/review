@@ -2,6 +2,8 @@ from typing import Any, Callable, List, Optional
 
 from llama_index.core.node_parser.relational.base_element import Element
 from llama_index.core.node_parser.relational.utils import md_to_df
+from pydantic import BaseModel
+
 
 def extract_elements(
     text: str,
@@ -137,13 +139,6 @@ def extract_elements(
                     type="text",
                     element=element.element,
                 )
-        else:
-            # if the element is not a table, keep it as to text
-            elements[idx] = Element(
-                id=f"id_{node_id}_{idx}" if node_id else f"id_{idx}",
-                type="text",
-                element=element.element,
-            )
 
     # merge consecutive text elements together for now
     merged_elements: List[Element] = []
@@ -158,3 +153,60 @@ def extract_elements(
             merged_elements.append(element)
     elements = merged_elements
     return merged_elements
+
+
+class Group(BaseModel):
+    type: str
+    title: Optional[str]
+    level: Optional[int]
+    elements: List[Element]
+    pass
+
+
+def group_elements_by_title(elements: List[Element]) -> List[Group]:
+    """
+    将 markdown 区块根据标题进行分组。分组依据为第一次出现的标题的类型。
+    """
+    groups = []
+
+    current_group = None
+
+    first_title_level = None
+
+    for el in elements:
+        if el.type == 'title':
+            if first_title_level is None and el.title_level is not None:
+                first_title_level = el.title_level
+            if current_group is None:
+                current_group = Group(
+                    type=el.type,
+                    title=el.element if isinstance(el.element, str) else None,
+                    level=el.title_level,
+                    elements=[el]
+                )
+            else:
+                if el.title_level and current_group.level and el.title_level > current_group.level:
+                    current_group.elements.append(el)
+                else:
+                    groups.append(current_group)
+                    current_group = Group(
+                        type=el.type,
+                        title=el.element if isinstance(el.element, str) else None,
+                        level=el.title_level,
+                        elements=[el]
+                    )
+        else:
+            if current_group is None:
+                current_group = Group(
+                    type='title',
+                    title=None,
+                    level=None,
+                    elements=[el]
+                )
+            else:
+                current_group.elements.append(el)
+
+    if current_group:
+        groups.append(current_group)
+
+    return groups

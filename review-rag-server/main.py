@@ -4,7 +4,7 @@ import asyncio
 
 from datetime import datetime
 from json import dumps
-from typing import Optional
+from typing import List, Optional
 from threading import Thread
 from os.path import splitext
 
@@ -14,14 +14,13 @@ from mayim.sql.postgres.executor import PostgresExecutor
 from mayim.sql.postgres.interface import PostgresPool
 from models.max_kb_document import MaxKbDocument
 from models.max_kb_file import MaxKbFile
+from models.max_kb_paragraph import MaxKbParagraph
 from snowflake import SnowflakeGenerator
-from marker.convert import convert_single_pdf
-from marker.models import load_all_models
 from sentence_splitter import SentenceSplitter, split_text_into_sentences
 from oss2 import ProviderAuthV4, Bucket
 from oss2.credentials import EnvironmentVariableCredentialsProvider
-
-from models.max_kb_paragraph import MaxKbParagraph
+from llama_index.readers.pdf_marker import PDFMarkerReader
+from utils.markdown import extract_elements, group_elements_by_title
 
 id_gen = SnowflakeGenerator(100)
 
@@ -204,20 +203,64 @@ class ChunksThread(Thread):
         self.local_file_path = local_file_path
 
     def run(self):
-        model_lst = load_all_models()
-        full_text, images, out_meta = convert_single_pdf(self.local_file_path, model_lst)
+        reader = PDFMarkerReader()
+        doc = reader.load_data(self.local_file_path)[0]
+
+        paragraph_list = []
+        groups = group_elements_by_title(extract_elements(doc.text))
+        for g in groups:
+            text = str.join('\n', [str(el.element) for el in g.elements])
+            kb_paragraph = MaxKbParagraph(
+                id=next(id_gen),
+                content=text,
+                title=g.title or '',
+                status='Created',
+                hit_num=0,
+                is_active=True,
+                dataset_id=0,
+                document_id=self.kb_doc_id,
+                creator='',
+                create_time=datetime.now(),
+                updater='',
+                update_time=datetime.now(),
+                deleted=0,
+                tenant_id=0
+            )
+            paragraph_list.append(kb_paragraph)
+
+        async def insert_paragraphs(paragraph_list: List[MaxKbParagraph]):
+            for paragraph in paragraph_list:
+                await self.executor.insert_paragraph(
+                    paragraph.id,
+                    paragraph.content,
+                    paragraph.title,
+                    paragraph.status,
+                    paragraph.hit_num,
+                    paragraph.is_active,
+                    paragraph.dataset_id,
+                    paragraph.document_id,
+                    paragraph.creator,
+                    paragraph.create_time,
+                    paragraph.updater,
+                    paragraph.update_time,
+                    paragraph.deleted,
+                    paragraph.tenant_id,
+                )
+
+        asyncio.run(insert_paragraphs(paragraph_list))
+
         asyncio.run(self.executor.update_document_content(
             'Parsed',
-            len(full_text),
-            dumps({"content": full_text}),
+            len(doc.text),
+            dumps({"content": doc.text}),
             "{}",
             self.kb_doc_id
         ))
 
-        print(out_meta)
+        # print(out_meta)
 
-        splitter = SentenceSplitter(language='en')
-        chunks = splitter.split(text=full_text)
+        # splitter = SentenceSplitter(language='en')
+        # chunks = splitter.split(text=full_text)
         # for chunk in chunks:
         #     kb_paragraph = MaxKbParagraph(
         #         id=next(id_gen),
