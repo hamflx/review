@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useForm } from "react-hook-form"
 import { Form, FormField, FormLabel, FormControl, FormDescription, FormMessage, FormItem } from "@/components/ui/form"
-import { CreateFileApi } from "@/apis/files"
+import { CreateDocumentApi } from "@/apis/files"
 import { ChangeEventHandler, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom";
 import { CommonResponse, errorMessage } from "@/apis/common"
@@ -39,7 +39,7 @@ export const CreateFile = () => {
         return
       }
       formData.append('file', fileObject)
-      const response: CommonResponse<unknown> = await fetch(CreateFileApi, {
+      const response: CommonResponse<unknown> = await fetch(CreateDocumentApi({dataset_id: id}), {
         method: 'POST',
         body: formData
       }).then(r => r.json())

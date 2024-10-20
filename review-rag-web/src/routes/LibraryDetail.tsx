@@ -1,5 +1,5 @@
 import useSWR from "swr"
-import { DeleteFilesApi, FetchFilesApi, MaxKbFile } from "../apis/files"
+import { DeleteDocumentApi, FetchDocumentApi, MaxKbFile } from "../apis/files"
 import { Link, useParams } from "react-router-dom"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
@@ -61,7 +61,7 @@ const columns: ColumnDef<MaxKbFile>[] = [
 
 export const LibraryDetail = () => {
   const {id} = useParams<{id: string}>()
-  const { data, error, isLoading, mutate } = useSWR<MaxKbFile[]>(FetchFilesApi, () => fetch(FetchFilesApi).then(r => r.json()))
+  const { data, error, isLoading, mutate } = useSWR<MaxKbFile[]>(FetchDocumentApi({dataset_id: id}), () => fetch(FetchDocumentApi({dataset_id: id})).then(r => r.json()))
   const table = useReactTable({
     data: data || [],
     columns,
@@ -78,7 +78,7 @@ export const LibraryDetail = () => {
         </Link>
         <Button onClick={async () => {
           const ids = table.getSelectedRowModel().rows.map(r => r.id)
-          await fetch(DeleteFilesApi, {
+          await fetch(DeleteDocumentApi({dataset_id: id}), {
             method: "DELETE",
             body: JSON.stringify(ids),
             headers: {

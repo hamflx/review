@@ -37,9 +37,9 @@ from llama_index.core.postprocessor import SentenceTransformerRerank
 id_gen = SnowflakeGenerator(100)
 
 class ReviewRagPostgresExecutor(PostgresExecutor):
-    async def select_all_files(
-        self, limit: int = 20, offset: int = 0
-    ) -> list[MaxKbFile]:
+    async def select_all_files(self, limit: int = 20, offset: int = 0) -> list[MaxKbFile]:
+        ...
+    async def select_all_documents(self, dataset_id, limit: int = 20, offset: int = 0) -> list[MaxKbDocument]:
         ...
     async def insert_dataset(self, id, name, description, type, meta, user_id, remark, creator, create_time, updater, update_time, deleted, tenant_id) -> None:
         ...
@@ -58,6 +58,8 @@ class ReviewRagPostgresExecutor(PostgresExecutor):
     async def update_paragraph_status(self, status, id) -> None:
         ...
     async def update_dataset_mark_deleted(self, deleted, id) -> None:
+        ...
+    async def update_document_mark_deleted(self, deleted, id) -> None:
         ...
     async def delete_file_item(self, id) -> None:
         ...
@@ -208,9 +210,9 @@ async def delete_dataset_handler(request: Request, executor: ReviewRagPostgresEx
         await executor.update_dataset_mark_deleted(1, id)
     return json({})
 
-@app.get("/api/files")
-async def fetch_all_files(request: Request, executor: ReviewRagPostgresExecutor):
-    files = await executor.select_all_files()
+@app.get("/api/dataset/<dataset_id>/document")
+async def fetch_all_files(request: Request, executor: ReviewRagPostgresExecutor, dataset_id: str):
+    files = await executor.select_all_documents(int(dataset_id))
     list = []
     for f in files:
         file_dict = f.__dict__.copy()
@@ -218,15 +220,15 @@ async def fetch_all_files(request: Request, executor: ReviewRagPostgresExecutor)
         list.append(file_dict)
     return json(list, default=str)
 
-@app.delete("/api/files")
-async def delete_files(request: Request, executor: ReviewRagPostgresExecutor):
+@app.delete("/api/dataset/<dataset_id>/document")
+async def delete_files(request: Request, executor: ReviewRagPostgresExecutor, dataset_id: str):
     ids = tuple(request.json)
     for id in ids:
-        await executor.delete_file_item(int(id))
+        await executor.update_document_mark_deleted(1, int(id))
     return json({"success": True})
 
-@app.post("/api/files/create")
-async def create_new_file_handler(request: Request, executor: ReviewRagPostgresExecutor):
+@app.post("/api/dataset/<dataset_id>/document/create")
+async def create_new_file_handler(request: Request, executor: ReviewRagPostgresExecutor, dataset_id: str):
     file = request.files.get('file')
     if not file:
         return json({"error": "没有文件"})
@@ -235,57 +237,56 @@ async def create_new_file_handler(request: Request, executor: ReviewRagPostgresE
     hash.update(file.body)
     md5 = hash.hexdigest()
 
-    exists_file = await executor.select_file_by_md5(md5, len(file.body))
-    if exists_file:
-        return json({"error": "文件已存在，请勿重复上传"})
-
-    kb_file_id = next(id_gen)
-
-    bucket.put_object(str(kb_file_id), file.body)
-
+    kb_file = await executor.select_file_by_md5(md5, len(file.body))
     filename, file_ext = splitext(file.name)
-    local_file = '%d%s' % (kb_file_id, file_ext)
-    with open(local_file, 'wb+') as f:
-        f.write(file.body)
+    local_file = ''
+    if not kb_file:
+        kb_file_id = next(id_gen)
 
-    kb_file = MaxKbFile(
-        id = kb_file_id,
-        md5 = md5,
-        filename = file.name,
-        file_size = len(file.body),
-        user_id = '',
-        platform = '',
-        region_name = '',
-        bucket_name = '',
-        file_id = '',
-        target_name = '',
-        tags = {},
-        creator = '',
-        create_time = datetime.now(),
-        updater = '',
-        update_time = datetime.now(),
-        deleted = 0,
-        tenant_id = 0
-    )
-    await executor.insert_file(
-        kb_file_id,
-        kb_file.md5,
-        kb_file.filename,
-        kb_file.file_size,
-        kb_file.user_id,
-        kb_file.platform,
-        kb_file.region_name,
-        kb_file.bucket_name,
-        kb_file.file_id,
-        kb_file.target_name,
-        dumps(kb_file.tags),
-        kb_file.creator,
-        kb_file.create_time,
-        kb_file.updater,
-        kb_file.update_time,
-        kb_file.deleted,
-        kb_file.tenant_id
-    )
+        bucket.put_object(str(kb_file_id), file.body)
+
+        local_file = '%d%s' % (kb_file_id, file_ext)
+        with open(local_file, 'wb+') as f:
+            f.write(file.body)
+
+        kb_file = MaxKbFile(
+            id = kb_file_id,
+            md5 = md5,
+            filename = file.name,
+            file_size = len(file.body),
+            user_id = '',
+            platform = '',
+            region_name = '',
+            bucket_name = '',
+            file_id = '',
+            target_name = '',
+            tags = {},
+            creator = '',
+            create_time = datetime.now(),
+            updater = '',
+            update_time = datetime.now(),
+            deleted = 0,
+            tenant_id = 0
+        )
+        await executor.insert_file(
+            kb_file_id,
+            kb_file.md5,
+            kb_file.filename,
+            kb_file.file_size,
+            kb_file.user_id,
+            kb_file.platform,
+            kb_file.region_name,
+            kb_file.bucket_name,
+            kb_file.file_id,
+            kb_file.target_name,
+            dumps(kb_file.tags),
+            kb_file.creator,
+            kb_file.create_time,
+            kb_file.updater,
+            kb_file.update_time,
+            kb_file.deleted,
+            kb_file.tenant_id
+        )
 
     md_filename = '%s.md' % filename
     kb_document = MaxKbDocument(
@@ -296,7 +297,7 @@ async def create_new_file_handler(request: Request, executor: ReviewRagPostgresE
         is_active = True,
         type = 'markdown',
         meta = {},
-        dataset_id = 0,
+        dataset_id = int(dataset_id),
         hit_handling_method = '',
         directly_return_similarity = 0,
         files = {},
@@ -327,7 +328,8 @@ async def create_new_file_handler(request: Request, executor: ReviewRagPostgresE
         kb_document.tenant_id,
     )
 
-    ChunksThread(kb_doc_id=kb_document.id, executor=executor, local_file_path=local_file).start()
+    if local_file:
+        ChunksThread(kb_doc_id=kb_document.id, executor=executor, local_file_path=local_file).start()
 
     return json({"file": kb_file.__dict__}, default=str)
 
@@ -447,4 +449,4 @@ class ChunksThread(Thread):
         asyncio.run(self.run_async())
 
 if __name__ == "__main__":
-    app.run(single_process=True)
+    app.run(single_process=True, host="0.0.0.0")

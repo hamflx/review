@@ -1,6 +1,18 @@
-export const FetchFilesApi = '/api/files'
-export const CreateFileApi = '/api/files/create'
-export const DeleteFilesApi = '/api/files'
+const api = function (strings: TemplateStringsArray) {
+  return (vars: Record<string, string | undefined | null>) => {
+    return Object.entries(vars).reduce(
+      (path, [key, value]) => {
+        if (value == null) return path
+        return path.replaceAll(`{${key}}`, value)
+      },
+      strings.join('')
+    )
+  }
+}
+
+export const FetchDocumentApi = api`/api/dataset/{dataset_id}/document`
+export const CreateDocumentApi = api`/api/dataset/{dataset_id}/document/create`
+export const DeleteDocumentApi = api`/api/dataset/{dataset_id}/document`
 
 export const FetchDatasetApi = '/api/dataset'
 export const CreateDatasetApi = '/api/dataset/create'
