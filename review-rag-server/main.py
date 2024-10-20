@@ -1,7 +1,6 @@
 from database.vector import ReviewRagPGVectorStore
 from utils.config import config
 
-import os
 import hashlib
 import asyncio
 
@@ -78,13 +77,6 @@ endpoint = 'https://oss-cn-nanjing.aliyuncs.com'
 region = 'cn-nanjing'
 bucket = Bucket(oss_auth, endpoint=endpoint, bucket_name='review-rag', region=region)
 
-DATABASE_USER = os.getenv("DATABASE_USER") or 'postgres'
-DATABASE_PASSWORD = os.getenv("DATABASE_PASSWORD") or 'she4waeJ_uquahg7goh4aewu'
-DATABASE_HOST = os.getenv("DATABASE_HOST") or '127.0.0.1'
-DATABASE_PORT = os.getenv("DATABASE_PORT") or '5666'
-
-EMBEDDING_MODEL_DIM = os.getenv('EMBEDDING_MODEL_DIM') or '768'
-
 logger.info("Building embedding model...")
 embed_model = HuggingFaceEmbedding(model_name=config.embedding.name)
 # Settings.embed_model = embed_model
@@ -95,17 +87,17 @@ llm = QwenUnofficial(temperature=config.llm.temperature, model=config.llm.name, 
 
 vector_store = ReviewRagPGVectorStore.from_params(
     database="postgres",
-    host=DATABASE_HOST,
-    password=DATABASE_PASSWORD,
-    port=DATABASE_PORT,
-    user=DATABASE_USER,
+    host=config.database.host,
+    password=config.database.password,
+    port=str(config.database.port),
+    user=config.database.user,
     table_name="max_kb_embedding",
     embed_dim=config.embedding.dim  # openai embedding dimension
 )
 index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
 query_engine = index.as_query_engine(
     llm=llm,
-    similarity_top_k=config.database.retrieve_topk,
+    similarity_top_k=config.retrieve.topk,
     node_postprocessors=[
         # TrimOverlapped(mongo=mongo_client(), target_metadata_key="window"),
         # WindowTextLoader(mongo=mongo_client(), target_metadata_key="window"),
@@ -128,7 +120,7 @@ query_engine = index.as_query_engine(
 @app.before_server_start
 async def setup_mayim(app: Sanic):
     executor = ReviewRagPostgresExecutor()
-    app.ctx.pool = PostgresPool(dsn="postgres://%s:%s@%s:%s" % (DATABASE_USER, DATABASE_PASSWORD, DATABASE_HOST, DATABASE_PORT))
+    app.ctx.pool = PostgresPool(dsn="postgres://%s:%s@%s:%d" % (config.database.user, config.database.password, config.database.host, config.database.port))
     await app.ctx.pool.open()
     Mayim(executors=[executor], pool=app.ctx.pool)
     app.ext.dependency(executor)

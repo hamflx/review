@@ -11,18 +11,27 @@ class ReviewRragEmbeddingConfig:
     dim: int
 
 @ts.settings
+class ReviewRragRetrieveConfig:
+    topk: int
+
+@ts.settings
 class ReviewRragRerankConfig:
     name: str
     topk: int
 
 @ts.settings
 class ReviewRragDatabaseConfig:
-    retrieve_topk: int
+    host: str
+    port: int
+    user: str
+    password: str
+
 
 @ts.settings
 class ReviewRragConfig:
     llm: ReviewRragLLMConfig
     embedding: ReviewRragEmbeddingConfig
+    retrieve: ReviewRragRetrieveConfig
     rerank: ReviewRragRerankConfig
     database: ReviewRragDatabaseConfig
 

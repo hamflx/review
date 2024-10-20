@@ -10,5 +10,11 @@ dim = 768
 name = "BAAI/bge-reranker-large"
 topk = 15
 
+[retrieve]
+topk = 50
+
 [database]
-retrieve_topk = 50
+host = "127.0.0.1"
+port = 5666
+user = "postgres"
+password = "she4waeJ_uquahg7goh4aewu"
