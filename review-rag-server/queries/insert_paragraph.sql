@@ -1,0 +1,31 @@
+INSERT INTO max_kb_paragraph (
+  id,
+  content,
+  title,
+  status,
+  hit_num,
+  is_active,
+  dataset_id,
+  document_id,
+  creator,
+  create_time,
+  updater,
+  update_time,
+  deleted,
+  tenant_id
+) VALUES (
+  $id,
+  $content,
+  $title,
+  $status,
+  $hit_num,
+  $is_active,
+  $dataset_id,
+  $document_id,
+  $creator,
+  $create_time,
+  $updater,
+  $update_time,
+  $deleted,
+  $tenant_id
+);

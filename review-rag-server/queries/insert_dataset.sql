@@ -1,0 +1,29 @@
+INSERT INTO max_kb_dataset (
+  id,
+  name,
+  description,
+  type,
+  meta,
+  user_id,
+  remark,
+  creator,
+  create_time,
+  updater,
+  update_time,
+  deleted,
+  tenant_id
+) VALUES (
+  $id,
+  $name,
+  $description,
+  $type,
+  $meta,
+  $user_id,
+  $remark,
+  $creator,
+  $create_time,
+  $updater,
+  $update_time,
+  $deleted,
+  $tenant_id
+);

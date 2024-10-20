@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS max_kb_file (
   -- 文件ID
   md5 VARCHAR(32) NOT NULL,
   -- 文件的MD5值，用于校验文件一致性
-  filename VARCHAR(64) NOT NULL,
+  filename VARCHAR(256) NOT NULL,
   -- 文件名
   file_size BIGINT NOT NULL,
   -- 文件大小（字节）
