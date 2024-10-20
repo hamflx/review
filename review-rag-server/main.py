@@ -12,6 +12,7 @@ from mayim import Mayim
 from sanic import Sanic, Request, json
 from mayim.sql.postgres.executor import PostgresExecutor
 from mayim.sql.postgres.interface import PostgresPool
+from models.max_kb_dataset import MaxKbDataset
 from models.max_kb_document import MaxKbDocument
 from models.max_kb_embedding import MaxKbEmbedding
 from models.max_kb_file import MaxKbFile
@@ -33,6 +34,8 @@ class ReviewRagPostgresExecutor(PostgresExecutor):
         self, limit: int = 20, offset: int = 0
     ) -> list[MaxKbFile]:
         ...
+    async def insert_dataset(self, id, name, description, type, meta, user_id, remark, creator, create_time, updater, update_time, deleted, tenant_id) -> None:
+        ...
     async def insert_file(self, id, md5, filename, file_size, user_id, platform, region_name, bucket_name, file_id, target_name, tags, creator, create_time, updater, update_time, deleted, tenant_id) -> None:
         ...
     async def insert_document(self, id, name, char_length, status, is_active, type, meta, dataset_id, hit_handling_method, directly_return_similarity, files, creator, create_time, updater, update_time, deleted, tenant_id) -> None:
@@ -41,11 +44,19 @@ class ReviewRagPostgresExecutor(PostgresExecutor):
         ...
     async def insert_embedding(self, id, source_id, source_type, is_active, embedding, meta, dataset_id, document_id, paragraph_id, search_vector, creator, create_time, updater, update_time, deleted, tenant_id) -> None:
         ...
+    async def update_dataset_info(self, name, description, updater, update_time, id) -> None:
+        ...
     async def update_document_content(self, status, char_length, files, meta, id) -> None:
         ...
     async def update_paragraph_status(self, status, id) -> None:
         ...
+    async def update_dataset_mark_deleted(self, deleted, id) -> None:
+        ...
     async def delete_file_item(self, id) -> None:
+        ...
+    async def select_all_dataset(self, limit: int = 20, offset: int = 0) -> List[MaxKbDataset]:
+        ...
+    async def select_dataset_by_id(self, id) -> Optional[MaxKbDataset]:
         ...
     async def select_file_by_md5(self, md5, file_size) -> Optional[MaxKbFile]:
         ...
@@ -77,6 +88,72 @@ async def setup_mayim(app: Sanic):
 @app.after_server_stop
 async def shutdown_mayim(app: Sanic):
     await app.ctx.pool.close()
+
+@app.get("/api/dataset")
+async def fetch_all_dataset_handler(request: Request, executor: ReviewRagPostgresExecutor):
+    kb_datasets = await executor.select_all_dataset()
+    dict_list = []
+    for item in kb_datasets:
+        copy = item.__dict__.copy()
+        copy['id'] = str(item.id)
+        dict_list.append(copy)
+    return json(dict_list, default=str)
+
+@app.post("/api/dataset/create")
+async def create_dataset_handler(request: Request, executor: ReviewRagPostgresExecutor):
+    name = request.json['name']
+    description = request.json['description']
+    kb_dataset = MaxKbDataset(
+        id=next(id_gen),
+        name=name,
+        description=description,
+        type='',
+        meta={},
+        user_id='',
+        remark='',
+        creator='',
+        create_time=datetime.now(),
+        updater='',
+        update_time=datetime.now(),
+        deleted=0,
+        tenant_id=0,
+    )
+    await executor.insert_dataset(
+        kb_dataset.id,
+        kb_dataset.name,
+        kb_dataset.description,
+        kb_dataset.type,
+        dumps(kb_dataset.meta),
+        kb_dataset.user_id,
+        kb_dataset.remark,
+        kb_dataset.creator,
+        kb_dataset.create_time,
+        kb_dataset.updater,
+        kb_dataset.update_time,
+        kb_dataset.deleted,
+        kb_dataset.tenant_id,
+    )
+    return json(kb_dataset.__dict__, default=str)
+
+@app.put("/api/dataset/<id>")
+async def update_dataset_info_handler(request: Request, executor: ReviewRagPostgresExecutor, id: str):
+    kb_dataset = await executor.select_dataset_by_id(id)
+    if kb_dataset is None:
+        return json({"error": "知识库不存在"})
+
+    name = request.json['name']
+    description = request.json['description']
+    await executor.update_dataset_info(name, description, '', datetime.now(), id)
+
+    kb_dataset.name = name
+    kb_dataset.description = description
+    return json(kb_dataset.__dict__, default=str)
+
+@app.delete("/api/dataset")
+async def delete_dataset_handler(request: Request, executor: ReviewRagPostgresExecutor):
+    for id in request.json:
+        await executor.update_dataset_mark_deleted(1, id)
+    return json({})
 
 @app.get("/api/files")
 async def fetch_all_files(request: Request, executor: ReviewRagPostgresExecutor):
