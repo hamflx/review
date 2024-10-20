@@ -73,7 +73,7 @@ export const Search = () => {
       <CardContent className="flex-1 flex flex-col gap-4">
         {historyMessages.map(m => {
           return (
-            <div className={`space-y-2 ${m.role === 'user' ? 'place-self-end' : 'place-self-start'}`}>
+            <div className={`space-y-2 flex flex-col ${m.role === 'user' ? 'place-self-end items-end' : 'place-self-start items-start'}`}>
               <Label>{m.role}</Label>
               <Card>
                 <CardContent className="flex-1 p-2">
