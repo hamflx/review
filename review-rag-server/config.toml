@@ -1,0 +1,14 @@
+[llm]
+name = "qwen"
+temperature = 0.01
+
+[embedding]
+name = "BAAI/bge-base-zh-v1.5"
+dim = 768
+
+[rerank]
+name = "BAAI/bge-reranker-large"
+topk = 15
+
+[database]
+retrieve_topk = 50

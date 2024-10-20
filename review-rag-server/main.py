@@ -1,3 +1,6 @@
+from database.vector import ReviewRagPGVectorStore
+from utils.config import config
+
 import os
 import hashlib
 import asyncio
@@ -8,10 +11,12 @@ from typing import List, Optional
 from threading import Thread
 from os.path import splitext
 
+from loguru import logger
 from mayim import Mayim
 from sanic import Sanic, Request, json
 from mayim.sql.postgres.executor import PostgresExecutor
 from mayim.sql.postgres.interface import PostgresPool
+from llms.QwenLLM import QwenUnofficial
 from models.max_kb_dataset import MaxKbDataset
 from models.max_kb_document import MaxKbDocument
 from models.max_kb_embedding import MaxKbEmbedding
@@ -26,6 +31,8 @@ from utils.markdown import extract_elements, group_elements_by_title
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core.indices.utils import embed_nodes
 from llama_index.core.schema import TextNode
+from llama_index.core import VectorStoreIndex
+from llama_index.core.postprocessor import SentenceTransformerRerank
 
 id_gen = SnowflakeGenerator(100)
 
@@ -74,7 +81,47 @@ DATABASE_PASSWORD = os.getenv("DATABASE_PASSWORD") or 'she4waeJ_uquahg7goh4aewu'
 DATABASE_HOST = os.getenv("DATABASE_HOST") or '127.0.0.1'
 DATABASE_PORT = os.getenv("DATABASE_PORT") or '5666'
 
-EMBEDDING_MODEL_NAME = os.getenv('EMBEDDING_MODEL_NAME') or 'BAAI/bge-base-zh-v1.5'
+EMBEDDING_MODEL_DIM = os.getenv('EMBEDDING_MODEL_DIM') or '768'
+
+logger.info("Building embedding model...")
+embed_model = HuggingFaceEmbedding(model_name=config.embedding.name)
+# Settings.embed_model = embed_model
+
+logger.info("Building LLM...")
+llm = QwenUnofficial(temperature=config.llm.temperature, model=config.llm.name, max_tokens=2048)
+# Settings.llm = embed_model
+
+vector_store = ReviewRagPGVectorStore.from_params(
+    database="postgres",
+    host=DATABASE_HOST,
+    password=DATABASE_PASSWORD,
+    port=DATABASE_PORT,
+    user=DATABASE_USER,
+    table_name="max_kb_embedding",
+    embed_dim=config.embedding.dim  # openai embedding dimension
+)
+index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
+query_engine = index.as_query_engine(
+    llm=llm,
+    similarity_top_k=config.database.retrieve_topk,
+    node_postprocessors=[
+        # TrimOverlapped(mongo=mongo_client(), target_metadata_key="window"),
+        # WindowTextLoader(mongo=mongo_client(), target_metadata_key="window"),
+        # MetadataReplacementPostProcessor(target_metadata_key="window"),
+        SentenceTransformerRerank(
+            model=config.rerank.name,
+            top_n=config.rerank.topk
+        ),
+    ], 
+    # text_qa_template=ChatPromptTemplate(message_templates=[
+    #     ChatMessage(role=MessageRole.SYSTEM, content=CHAT_SYSTEM_PROMPT_STR),
+    #     ChatMessage(role=MessageRole.USER, content=CHAT_QA_PROMPT_TMPL_STR),
+    # ]),
+    # refine_template=ChatPromptTemplate(message_templates=[
+    #     ChatMessage(role=MessageRole.SYSTEM, content=CHAT_SYSTEM_PROMPT_STR),
+    #     ChatMessage(role=MessageRole.USER, content=CHAT_REFINE_QA_PROMPT_TMPL_STR),
+    # ]),
+)
 
 @app.before_server_start
 async def setup_mayim(app: Sanic):
@@ -88,6 +135,12 @@ async def setup_mayim(app: Sanic):
 @app.after_server_stop
 async def shutdown_mayim(app: Sanic):
     await app.ctx.pool.close()
+
+@app.post("/api/chat")
+async def chat_with_llm(request: Request, executor: ReviewRagPostgresExecutor):
+    query = request.json['query']
+    response = query_engine.query(query)
+    return json({"message": f"{response}"}, default=str)
 
 @app.get("/api/dataset")
 async def fetch_all_dataset_handler(request: Request, executor: ReviewRagPostgresExecutor):
@@ -341,7 +394,6 @@ class ChunksThread(Thread):
         await insert_paragraphs(chunk_list)
 
         text_nodes = [TextNode(id_=str(chunk.id), text=chunk.content) for chunk in chunk_list]
-        embed_model = HuggingFaceEmbedding(model_name=EMBEDDING_MODEL_NAME)
         id_to_embed_map = embed_nodes(text_nodes, embed_model, show_progress=True)
         for chunk in chunk_list:
             kb_embedding = MaxKbEmbedding(
@@ -350,7 +402,7 @@ class ChunksThread(Thread):
                 source_type='paragraph',
                 is_active=True,
                 embedding=id_to_embed_map[str(chunk.id)],
-                meta={},
+                meta={"text": chunk.content},
                 dataset_id=0,
                 document_id=self.kb_doc_id,
                 paragraph_id=chunk.id,

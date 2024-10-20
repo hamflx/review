@@ -2,13 +2,12 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router-dom'
 import './index.css'
-import { Files } from './routes/Files.tsx'
 import { CreateFile } from './routes/CreateFile.tsx'
 import App from './App.tsx'
 import { Libraries } from './routes/Libraries.tsx'
 import { Search } from './routes/Search.tsx'
 import { CreateLibray } from './routes/CreateLibray.tsx'
-import { LibraryDetail } from './routes/LibraryDetail.tsx'
+import { Documents } from './routes/Documents.tsx'
 
 const router = createBrowserRouter([
   {
@@ -33,17 +32,19 @@ const router = createBrowserRouter([
           },
           {
             path: 'detail/:id',
-            element: <LibraryDetail/>,
+            element: <Outlet/>,
+            children: [
+              {
+                path: 'document/list',
+                element: <Documents/>,
+              },
+              {
+                path: 'document/create',
+                element: <CreateFile/>,
+              },
+            ]
           },
         ]
-      },
-      {
-        path: 'list',
-        element: <Files/>,
-      },
-      {
-        path: 'create',
-        element: <CreateFile/>,
       },
     ]
   }

@@ -4,8 +4,15 @@ import { useForm } from "react-hook-form"
 import { Form, FormField, FormLabel, FormControl, FormDescription, FormMessage, FormItem } from "@/components/ui/form"
 import { CreateFileApi } from "@/apis/files"
 import { ChangeEventHandler, useState } from "react"
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { CommonResponse, errorMessage } from "@/apis/common"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 
 // 最大允许上传 5MB 文件。
 const MEGA_BYTES = 1024 * 1024
@@ -22,6 +29,7 @@ export const CreateFile = () => {
     setFileObject(event.target.files?.[0])
     form.clearErrors()
   }
+  const {id} = useParams()
   const navigate = useNavigate()
   async function onSubmit() {
     const formData = new FormData()
@@ -39,35 +47,41 @@ export const CreateFile = () => {
       if (error) {
         alert(error)
       } else {
-        navigate('/file/list')
+        navigate(`/library/detail/${id}/document/list`)
       }
     } else {
       form.setError('file', {message: '请选择文件'})
     }
   }
   return (
-    <div className="p-2">
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <FormField
-            control={form.control}
-            name="file"
-            render={() => (
-              <FormItem>
-                <FormLabel>文件</FormLabel>
-                <FormControl>
-                  <Input type="file" onChange={onFileChange}/>
-                </FormControl>
-                <FormDescription>
-                  This is your public display name.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <Button type="submit">提交</Button>
-        </form>
-      </Form>
-    </div>
+    <Card className="flex flex-col flex-1 m-2 ml-0 overflow-hidden">
+      <CardHeader>
+        <CardTitle>知识库管理</CardTitle>
+        <CardDescription>您可以创建多个知识库，在与 AI 对话时，可以选择知识库上下文。</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-1">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <FormField
+              control={form.control}
+              name="file"
+              render={() => (
+                <FormItem>
+                  <FormLabel>文件</FormLabel>
+                  <FormControl>
+                    <Input type="file" onChange={onFileChange}/>
+                  </FormControl>
+                  <FormDescription>
+                    This is your public display name.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button type="submit">提交</Button>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
   )
 }

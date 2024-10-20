@@ -1,6 +1,6 @@
 import useSWR from "swr"
-import { DeleteDatasetApi, FetchDatasetApi, MaxKbDataset } from "../apis/files"
-import { Link } from "react-router-dom"
+import { DeleteFilesApi, FetchFilesApi, MaxKbFile } from "../apis/files"
+import { Link, useParams } from "react-router-dom"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table"
@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
-const columns: ColumnDef<MaxKbDataset>[] = [
+const columns: ColumnDef<MaxKbFile>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -37,12 +37,12 @@ const columns: ColumnDef<MaxKbDataset>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "name",
-    header: "名称",
+    accessorKey: "filename",
+    header: "文件名",
   },
   {
-    accessorKey: "description",
-    header: "描述",
+    accessorKey: "create_time",
+    header: "创建时间",
   },
   {
     accessorKey: "creator",
@@ -57,19 +57,18 @@ const columns: ColumnDef<MaxKbDataset>[] = [
     header: "更新人",
   },
   {
-    header: '管理文档',
-    cell: ({row}) => {
-      return (
-        <Link to={`/library/detail/${row.id}/document/list`}>
-          <Button variant="link">管理文档</Button>
-        </Link>
-      )
-    }
+    accessorKey: "md5",
+    header: "MD5",
+  },
+  {
+    accessorKey: "file_size",
+    header: "文件大小",
   },
 ]
 
-export const Libraries = () => {
-  const { data, error, isLoading, mutate } = useSWR<MaxKbDataset[]>(FetchDatasetApi, () => fetch(FetchDatasetApi).then(r => r.json()))
+export const Documents = () => {
+  const {id} = useParams<{id: string}>()
+  const { data, error, isLoading, mutate } = useSWR<MaxKbFile[]>(FetchFilesApi, () => fetch(FetchFilesApi).then(r => r.json()))
   const table = useReactTable({
     data: data || [],
     columns,
@@ -78,33 +77,28 @@ export const Libraries = () => {
   })
   if (error) return <div>failed to load</div>
   if (isLoading) return <div>loading...</div>
-
-  const deleteButton = (
-    <Button variant="destructive" onClick={async () => {
-      const ids = table.getSelectedRowModel().rows.map(r => r.id)
-      await fetch(DeleteDatasetApi, {
-        method: "DELETE",
-        body: JSON.stringify(ids),
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-      mutate()
-    }}>删除</Button>
-  )
-
   return (
     <Card className="flex flex-col flex-1 m-2 ml-0 overflow-hidden">
       <CardHeader>
-        <CardTitle>知识库管理</CardTitle>
-        <CardDescription>您可以创建多个知识库，在与 AI 对话时，可以选择知识库上下文。</CardDescription>
+        <CardTitle>文档管理</CardTitle>
+        <CardDescription>上传文档，并将文档向量化。</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col flex-1 gap-4">
         <div className="flex gap-2">
-          <Link to="/library/create">
-            <Button>创建知识库</Button>
+          <Link to={`/library/detail/${id}/document/create`}>
+            <Button>上传文档</Button>
           </Link>
-          {deleteButton}
+          <Button variant="destructive" onClick={async () => {
+            const ids = table.getSelectedRowModel().rows.map(r => r.id)
+            await fetch(DeleteFilesApi, {
+              method: "DELETE",
+              body: JSON.stringify(ids),
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            })
+            mutate()
+          }}>删除文档</Button>
         </div>
         <Table>
           <TableHeader>
