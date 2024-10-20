@@ -5,6 +5,7 @@ import { Form, FormField, FormLabel, FormControl, FormDescription, FormMessage, 
 import { CreateFileApi } from "@/apis/files"
 import { ChangeEventHandler, useState } from "react"
 import { useNavigate } from "react-router-dom";
+import { CommonResponse, errorMessage } from "@/apis/common"
 
 // 最大允许上传 5MB 文件。
 const MEGA_BYTES = 1024 * 1024
@@ -30,11 +31,16 @@ export const CreateFile = () => {
         return
       }
       formData.append('file', fileObject)
-      await fetch(CreateFileApi, {
+      const response: CommonResponse<unknown> = await fetch(CreateFileApi, {
         method: 'POST',
         body: formData
-      })
-      navigate('/file/list')
+      }).then(r => r.json())
+      const error = errorMessage(response)
+      if (error) {
+        alert(error)
+      } else {
+        navigate('/file/list')
+      }
     } else {
       form.setError('file', {message: '请选择文件'})
     }

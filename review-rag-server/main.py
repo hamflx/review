@@ -42,6 +42,8 @@ class ReviewRagPostgresExecutor(PostgresExecutor):
         ...
     async def delete_file_item(self, id) -> None:
         ...
+    async def select_file_by_md5(self, md5, file_size) -> MaxKbFile:
+        ...
     async def initialize_database(self) -> None:
         ...
 
@@ -86,11 +88,15 @@ async def delete_files(request: Request, executor: ReviewRagPostgresExecutor):
 async def create_new_file_handler(request: Request, executor: ReviewRagPostgresExecutor):
     file = request.files.get('file')
     if not file:
-        json({"error": "没有文件"})
+        return json({"error": "没有文件"})
     file = request.files['file'][0]
     hash = hashlib.md5()
     hash.update(file.body)
     md5 = hash.hexdigest()
+
+    exists_file = await executor.select_file_by_md5(md5, len(file.body))
+    if exists_file:
+        return json({"error": "文件已存在，请勿重复上传"})
 
     kb_file = MaxKbFile(
         id = next(gen),
