@@ -690,6 +690,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/85/1f/21e2fb9564b53122105866c26daeb239911b003d1df3867dd113cf5a7694/huggingface_hub-0.26.0-py3-none-any.whl", hash = "sha256:e43b8f36042b2103b48dea822535e08f5f089c4aa7013a067fca7b4ebf7f85a3", size = 447434 },
 ]
 
+[package.optional-dependencies]
+inference = [
+    { name = "aiohttp" },
+]
+
 [[package]]
 name = "humanfriendly"
 version = "10.0"
@@ -890,6 +895,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/0d/78/32dee05cdb93125602f82a38a59f38760cfd6cdd3527d09a03d7111b61e8/llama_index_core-0.11.19.tar.gz", hash = "sha256:5304f9744328cfae60cd1f652d7b4f1ae635da4a34239599cff0d600c4634c49", size = 1323547 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4e/be/303ad41634779502175c8cb51b7baeeae1c0fe5c56870c87bcae8464a850/llama_index_core-0.11.19-py3-none-any.whl", hash = "sha256:9cde85085dcd4beb66b69b1922f07acdf39f2da4b17c32b4265a7c0ab641d3ae", size = 1574296 },
+]
+
+[[package]]
+name = "llama-index-embeddings-huggingface"
+version = "0.3.1"
+source = { registry = "https://pypi.python.org/simple" }
+dependencies = [
+    { name = "huggingface-hub", extra = ["inference"] },
+    { name = "llama-index-core" },
+    { name = "sentence-transformers" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/53/2d/f4955da9abd36d3a150dab4c93e34bfc9fc0716cc0038c3d64f3df41d866/llama_index_embeddings_huggingface-0.3.1.tar.gz", hash = "sha256:7aef6324a19576e6b95bfe927c3bd4fc1c5725edce9f26b4e5d2eefa27c02fdb", size = 7625 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/05/14/7888378e644bce57f8475eeb186a9fb88c38abae962dd20c3c536b9c5cc4/llama_index_embeddings_huggingface-0.3.1-py3-none-any.whl", hash = "sha256:71708240b1aec183c80f20d531b39a75d0cce774586e11bb0798f3ecb270749c", size = 8581 },
 ]
 
 [[package]]
@@ -2140,6 +2159,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "llama-index" },
+    { name = "llama-index-embeddings-huggingface" },
     { name = "llama-index-readers-pdf-marker" },
     { name = "mayim", extra = ["postgres"] },
     { name = "oss2" },
@@ -2157,6 +2177,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "llama-index", specifier = ">=0.11.19" },
+    { name = "llama-index-embeddings-huggingface", specifier = ">=0.3.1" },
     { name = "llama-index-readers-pdf-marker", specifier = ">=0.2.0" },
     { name = "mayim", extras = ["postgres"], specifier = ">=1.1.0" },
     { name = "oss2", specifier = ">=2.19.0" },
@@ -2357,6 +2378,24 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/20/b3/86b431fe7002ba006c08b8559d2ad78e1153bfc515a453cc96d2f55a2c40/sentence_splitter-1.4.tar.gz", hash = "sha256:3d1d773d07cc733ca2955aa87d0fa1c0a7274c6bdeec1daac5c5e92efb512f63", size = 30607 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4a/ae/3bd609c760d57849d7ddf223762f1881f3c4df6467f4eadb3a33652b7e0d/sentence_splitter-1.4-py2.py3-none-any.whl", hash = "sha256:5645a3ad9c348e4287f4bc73bd573d92dccd4139042fddd51fff0591f1376763", size = 44998 },
+]
+
+[[package]]
+name = "sentence-transformers"
+version = "3.2.0"
+source = { registry = "https://pypi.python.org/simple" }
+dependencies = [
+    { name = "huggingface-hub" },
+    { name = "pillow" },
+    { name = "scikit-learn" },
+    { name = "scipy" },
+    { name = "torch" },
+    { name = "tqdm" },
+    { name = "transformers" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/77/aa/ccd95cc81156e19173d7e102fa96137560b5fbef4f7c640076f201b712d5/sentence_transformers-3.2.0.tar.gz", hash = "sha256:4da78ba340fffc48d60a25415145cbe665216d374c948ec54c3163bd352bcc27", size = 202337 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e7/78/2835963e7c03865392e88008629d9b81db386fedfcfac006d5c6454b8ecf/sentence_transformers-3.2.0-py3-none-any.whl", hash = "sha256:02dbe96d669d30084ea11af94e7c17895c31748e86f20af4dbcc4ea6522b3506", size = 255175 },
 ]
 
 [[package]]

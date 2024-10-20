@@ -1,0 +1,36 @@
+INSERT INTO max_kb_embedding (
+  id,
+  source_id,
+  source_type,
+  is_active,
+  embedding,
+  meta,
+  dataset_id,
+  document_id,
+  paragraph_id,
+  search_vector,
+  creator,
+  create_time,
+  updater,
+  update_time,
+  deleted,
+  tenant_id
+)
+VALUES (
+  $id,
+  $source_id,
+  $source_type,
+  $is_active,
+  $embedding,
+  $meta,
+  $dataset_id,
+  $document_id,
+  $paragraph_id,
+  $search_vector,
+  $creator,
+  $create_time,
+  $updater,
+  $update_time,
+  $deleted,
+  $tenant_id
+)

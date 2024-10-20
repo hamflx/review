@@ -13,6 +13,7 @@ from sanic import Sanic, Request, json
 from mayim.sql.postgres.executor import PostgresExecutor
 from mayim.sql.postgres.interface import PostgresPool
 from models.max_kb_document import MaxKbDocument
+from models.max_kb_embedding import MaxKbEmbedding
 from models.max_kb_file import MaxKbFile
 from models.max_kb_paragraph import MaxKbParagraph
 from snowflake import SnowflakeGenerator
@@ -21,6 +22,9 @@ from oss2 import ProviderAuthV4, Bucket
 from oss2.credentials import EnvironmentVariableCredentialsProvider
 from llama_index.readers.pdf_marker import PDFMarkerReader
 from utils.markdown import extract_elements, group_elements_by_title
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from llama_index.core.indices.utils import embed_nodes
+from llama_index.core.schema import TextNode
 
 id_gen = SnowflakeGenerator(100)
 
@@ -35,7 +39,11 @@ class ReviewRagPostgresExecutor(PostgresExecutor):
         ...
     async def insert_paragraph(self, id, content, title, status, hit_num, is_active, dataset_id, document_id, creator, create_time, updater, update_time, deleted, tenant_id) -> None:
         ...
+    async def insert_embedding(self, id, source_id, source_type, is_active, embedding, meta, dataset_id, document_id, paragraph_id, search_vector, creator, create_time, updater, update_time, deleted, tenant_id) -> None:
+        ...
     async def update_document_content(self, status, char_length, files, meta, id) -> None:
+        ...
+    async def update_paragraph_status(self, status, id) -> None:
         ...
     async def delete_file_item(self, id) -> None:
         ...
@@ -54,6 +62,8 @@ DATABASE_USER = os.getenv("DATABASE_USER") or 'postgres'
 DATABASE_PASSWORD = os.getenv("DATABASE_PASSWORD") or 'she4waeJ_uquahg7goh4aewu'
 DATABASE_HOST = os.getenv("DATABASE_HOST") or '127.0.0.1'
 DATABASE_PORT = os.getenv("DATABASE_PORT") or '5666'
+
+EMBEDDING_MODEL_NAME = os.getenv('EMBEDDING_MODEL_NAME') or 'BAAI/bge-base-zh-v1.5'
 
 @app.before_server_start
 async def setup_mayim(app: Sanic):
@@ -202,34 +212,38 @@ class ChunksThread(Thread):
         self.executor = executor
         self.local_file_path = local_file_path
 
-    def run(self):
+    async def run_async(self):
         reader = PDFMarkerReader()
         doc = reader.load_data(self.local_file_path)[0]
 
-        paragraph_list = []
+
+        splitter = SentenceSplitter(language='en')
+        chunk_list: List[MaxKbParagraph] = []
         groups = group_elements_by_title(extract_elements(doc.text))
         for g in groups:
-            text = str.join('\n', [str(el.element) for el in g.elements])
-            kb_paragraph = MaxKbParagraph(
-                id=next(id_gen),
-                content=text,
-                title=g.title or '',
-                status='Created',
-                hit_num=0,
-                is_active=True,
-                dataset_id=0,
-                document_id=self.kb_doc_id,
-                creator='',
-                create_time=datetime.now(),
-                updater='',
-                update_time=datetime.now(),
-                deleted=0,
-                tenant_id=0
-            )
-            paragraph_list.append(kb_paragraph)
+            block_text = str.join('\n', [str(el.element) for el in g.elements])
+            text_chunks = splitter.split(block_text)
+            for chunk in text_chunks:
+                kb_paragraph = MaxKbParagraph(
+                    id=next(id_gen),
+                    content=chunk,
+                    title=g.title or '',
+                    status='Created',
+                    hit_num=0,
+                    is_active=True,
+                    dataset_id=0,
+                    document_id=self.kb_doc_id,
+                    creator='',
+                    create_time=datetime.now(),
+                    updater='',
+                    update_time=datetime.now(),
+                    deleted=0,
+                    tenant_id=0
+                )
+                chunk_list.append(kb_paragraph)
 
-        async def insert_paragraphs(paragraph_list: List[MaxKbParagraph]):
-            for paragraph in paragraph_list:
+        async def insert_paragraphs(chunk_list: List[MaxKbParagraph]):
+            for paragraph in chunk_list:
                 await self.executor.insert_paragraph(
                     paragraph.id,
                     paragraph.content,
@@ -247,39 +261,61 @@ class ChunksThread(Thread):
                     paragraph.tenant_id,
                 )
 
-        asyncio.run(insert_paragraphs(paragraph_list))
+        await insert_paragraphs(chunk_list)
 
-        asyncio.run(self.executor.update_document_content(
+        text_nodes = [TextNode(id_=str(chunk.id), text=chunk.content) for chunk in chunk_list]
+        embed_model = HuggingFaceEmbedding(model_name=EMBEDDING_MODEL_NAME)
+        id_to_embed_map = embed_nodes(text_nodes, embed_model, show_progress=True)
+        for chunk in chunk_list:
+            kb_embedding = MaxKbEmbedding(
+                id=next(id_gen),
+                source_id=chunk.id,
+                source_type='paragraph',
+                is_active=True,
+                embedding=id_to_embed_map[str(chunk.id)],
+                meta={},
+                dataset_id=0,
+                document_id=self.kb_doc_id,
+                paragraph_id=chunk.id,
+                search_vector='',
+                creator='',
+                create_time=datetime.now(),
+                updater='',
+                update_time=datetime.now(),
+                deleted=0,
+                tenant_id=0
+            )
+            await self.executor.insert_embedding(
+                kb_embedding.id,
+                kb_embedding.source_id,
+                kb_embedding.source_type,
+                kb_embedding.is_active,
+                kb_embedding.embedding,
+                dumps(kb_embedding.meta),
+                kb_embedding.dataset_id,
+                kb_embedding.document_id,
+                kb_embedding.paragraph_id,
+                kb_embedding.search_vector,
+                kb_embedding.creator,
+                kb_embedding.create_time,
+                kb_embedding.updater,
+                kb_embedding.update_time,
+                kb_embedding.deleted,
+                kb_embedding.tenant_id,
+            )
+            await self.executor.update_paragraph_status('Completed', chunk.id)
+
+        await self.executor.update_document_content(
             'Parsed',
             len(doc.text),
             dumps({"content": doc.text}),
             "{}",
             self.kb_doc_id
-        ))
+        )
 
-        # print(out_meta)
 
-        # splitter = SentenceSplitter(language='en')
-        # chunks = splitter.split(text=full_text)
-        # for chunk in chunks:
-        #     kb_paragraph = MaxKbParagraph(
-        #         id=next(id_gen),
-        #         content=chunk,
-        #         title=chunk,
-        #         status=
-        #         hit_num=
-        #         is_active=
-        #         dataset_id=
-        #         document_id=
-        #         creator=
-        #         create_time=
-        #         updater=
-        #         update_time=
-        #         deleted=
-        #         tenant_id=
-        #     )
-        #     self.executor.insert_paragraph()
-        # print(chunks)
+    def run(self):
+        asyncio.run(self.run_async())
 
 if __name__ == "__main__":
     app.run(single_process=True)
