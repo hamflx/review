@@ -1,5 +1,5 @@
 import useSWR from "swr"
-import { DeleteDocumentApi, FetchDocumentApi, MaxKbFile } from "../apis/files"
+import { DeleteDocumentApi, FetchDocumentApi, MaxKbDocument } from "../apis/files"
 import { Link, useParams } from "react-router-dom"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
-const columns: ColumnDef<MaxKbFile>[] = [
+const columns: ColumnDef<MaxKbDocument>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -37,7 +37,7 @@ const columns: ColumnDef<MaxKbFile>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "filename",
+    accessorKey: "name",
     header: "文件名",
   },
   {
@@ -56,19 +56,11 @@ const columns: ColumnDef<MaxKbFile>[] = [
     accessorKey: "updater",
     header: "更新人",
   },
-  {
-    accessorKey: "md5",
-    header: "MD5",
-  },
-  {
-    accessorKey: "file_size",
-    header: "文件大小",
-  },
 ]
 
 export const Documents = () => {
   const {id} = useParams<{id: string}>()
-  const { data, error, isLoading, mutate } = useSWR<MaxKbFile[]>(FetchDocumentApi({dataset_id: id}), () => fetch(FetchDocumentApi({dataset_id: id})).then(r => r.json()))
+  const { data, error, isLoading, mutate } = useSWR<MaxKbDocument[]>(FetchDocumentApi({dataset_id: id}), () => fetch(FetchDocumentApi({dataset_id: id})).then(r => r.json()))
   const table = useReactTable({
     data: data || [],
     columns,

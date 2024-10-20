@@ -1,12 +1,12 @@
 import useSWR from "swr"
-import { DeleteDocumentApi, FetchDocumentApi, MaxKbFile } from "../apis/files"
+import { DeleteDocumentApi, FetchDocumentApi, MaxKbDocument } from "../apis/files"
 import { Link, useParams } from "react-router-dom"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table"
 import { Checkbox } from "@/components/ui/checkbox"
 
-const columns: ColumnDef<MaxKbFile>[] = [
+const columns: ColumnDef<MaxKbDocument>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -61,7 +61,7 @@ const columns: ColumnDef<MaxKbFile>[] = [
 
 export const LibraryDetail = () => {
   const {id} = useParams<{id: string}>()
-  const { data, error, isLoading, mutate } = useSWR<MaxKbFile[]>(FetchDocumentApi({dataset_id: id}), () => fetch(FetchDocumentApi({dataset_id: id})).then(r => r.json()))
+  const { data, error, isLoading, mutate } = useSWR<MaxKbDocument[]>(FetchDocumentApi({dataset_id: id}), () => fetch(FetchDocumentApi({dataset_id: id})).then(r => r.json()))
   const table = useReactTable({
     data: data || [],
     columns,

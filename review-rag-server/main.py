@@ -238,13 +238,13 @@ async def create_new_file_handler(request: Request, executor: ReviewRagPostgresE
     md5 = hash.hexdigest()
 
     kb_file = await executor.select_file_by_md5(md5, len(file.body))
-    filename, file_ext = splitext(file.name)
     local_file = ''
     if not kb_file:
         kb_file_id = next(id_gen)
 
         bucket.put_object(str(kb_file_id), file.body)
 
+        filename, file_ext = splitext(file.name)
         local_file = '%d%s' % (kb_file_id, file_ext)
         with open(local_file, 'wb+') as f:
             f.write(file.body)
@@ -288,10 +288,9 @@ async def create_new_file_handler(request: Request, executor: ReviewRagPostgresE
             kb_file.tenant_id
         )
 
-    md_filename = '%s.md' % filename
     kb_document = MaxKbDocument(
         id = next(id_gen),
-        name = md_filename,
+        name = file.name,
         char_length = 0,
         status = 'Created',
         is_active = True,
