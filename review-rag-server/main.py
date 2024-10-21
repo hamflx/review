@@ -32,6 +32,7 @@ from llama_index.core.indices.utils import embed_nodes
 from llama_index.core.schema import TextNode
 from llama_index.core import VectorStoreIndex
 from llama_index.llms.dashscope import DashScope
+from llama_index.llms.openai import OpenAI
 from llama_index.core.postprocessor import SentenceTransformerRerank
 from llama_index.core.chat_engine.types import ChatMode
 from llama_index.postprocessor.dashscope_rerank import DashScopeRerank
@@ -129,7 +130,12 @@ async def setup_mayim(app: Sanic):
     app.ctx.embed_model = embed_model
 
     logger.info("Building LLM...")
-    app.ctx.llm = DashScope(model_name=config.llm.name, api_key=os.getenv("DASHSCOPE_API_KEY"))
+    if config.llm.provider == "qwen":
+        app.ctx.llm = DashScope(model_name=config.llm.name, api_key=os.getenv("DASHSCOPE_API_KEY"))
+    elif config.llm.provider == "openai":
+        app.ctx.llm = OpenAI(model_name=config.llm.name)
+    else:
+        raise ValueError(f"不支持的 config.llm.provider={config.llm.provider}")
 
     vector_store = ReviewRagPGVectorStore.from_params(
         database="postgres",

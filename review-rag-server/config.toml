@@ -1,4 +1,5 @@
 [llm]
+provider = "qwen"
 name = "qwen-max"
 temperature = 0.01
 

@@ -5,6 +5,7 @@ import typed_settings as ts
 class ReviewRragLLMConfig:
     name: str
     temperature: float
+    provider: str
 
 @ts.settings
 class ReviewRragChunkConfig:
@@ -22,8 +23,8 @@ class ReviewRragRetrieveConfig:
 
 @ts.settings
 class ReviewRragRerankConfig:
-    name: Optional[str]
     topk: int
+    name: Optional[str] = None
 
 @ts.settings
 class ReviewRragDatabaseConfig:
