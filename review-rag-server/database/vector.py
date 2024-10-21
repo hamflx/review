@@ -58,6 +58,16 @@ class ReviewRagPGVectorStore(PGVectorStore):
             use_jsonb=use_jsonb,
         )
 
+    # 数据集 ID 我们通过字段直接过滤，不要解析 metadata 里面的值。
+    def _build_filter_clause(self, filter_):
+        from sqlalchemy import text
+
+        return text(
+            f"{filter_.key}"
+            f"{self._to_postgres_operator(filter_.operator)} "
+            f"({filter_.value})"
+        )
+
     def _build_query(
         self,
         embedding: Optional[List[float]],

@@ -36,7 +36,7 @@ export interface MaxKbDocument {
 }
 
 export interface MaxKbDataset {
-  id: number
+  id: string
   name: string
   description: string
   type: string

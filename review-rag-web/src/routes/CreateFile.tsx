@@ -16,7 +16,7 @@ import {
 
 // 最大允许上传 5MB 文件。
 const MEGA_BYTES = 1024 * 1024
-const MAX_FILE_SIZE = 5 * MEGA_BYTES
+const MAX_FILE_SIZE = 30 * MEGA_BYTES
 
 export const CreateFile = () => {
   const form = useForm({

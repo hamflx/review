@@ -36,7 +36,7 @@ interface MessageModel {
 
 export const Search = () => {
   const { data: datasetList } = useSWR<MaxKbDataset[]>(FetchDatasetApi, () => fetch(FetchDatasetApi).then(r => r.json()))
-  const [selectedDatasetId, setSelectedDatasetId] = useState(0)
+  const [selectedDatasetId, setSelectedDatasetId] = useState('0')
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -116,7 +116,7 @@ export const Search = () => {
       <CardFooter className="flex-col items-start gap-4">
         <div className="flex flex-col gap-4">
           <Label>选择知识库</Label>
-          <Select value={`${selectedDatasetId}`} onValueChange={datasetId => setSelectedDatasetId(+datasetId)}>
+          <Select defaultValue={selectedDatasetId} onValueChange={datasetId => setSelectedDatasetId(datasetId)}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="选择知识库" />
             </SelectTrigger>
@@ -125,7 +125,7 @@ export const Search = () => {
               {
                 (datasetList || []).map(dataset => {
                   return (
-                    <SelectItem value={`${dataset.id}`} key={dataset.id}>{dataset.name}</SelectItem>
+                    <SelectItem value={dataset.id} key={dataset.id}>{dataset.name}</SelectItem>
                   )
                 })
               }

@@ -37,6 +37,11 @@ from llama_index.core.postprocessor import SentenceTransformerRerank
 from llama_index.core.chat_engine.types import ChatMode
 from llama_index.postprocessor.dashscope_rerank import DashScopeRerank
 from llama_index.core.base.llms.types import ChatMessage
+from llama_index.core.vector_stores import (
+    MetadataFilter,
+    MetadataFilters,
+    FilterOperator,
+)
 
 id_gen = SnowflakeGenerator(100)
 
@@ -104,30 +109,40 @@ if config.rerank.name:
     rerank_processor = SentenceTransformerRerank(model=config.rerank.name, top_n=config.rerank.topk)
 else:
     rerank_processor = DashScopeRerank(top_n=config.rerank.topk, model="gte-rerank")
-chat_engine = index.as_chat_engine(
-    llm=llm,
-    chat_mode=ChatMode.BEST,
-    similarity_top_k=config.retrieve.topk,
-    node_postprocessors=[
-        # TrimOverlapped(mongo=mongo_client(), target_metadata_key="window"),
-        # WindowTextLoader(mongo=mongo_client(), target_metadata_key="window"),
-        # MetadataReplacementPostProcessor(target_metadata_key="window"),
+def create_chat_engine_with_dataset_id(dataset_id: int):
+    filters = MetadataFilters(
+        filters=[
+            MetadataFilter(
+                key="dataset_id", operator=FilterOperator.EQ, value=dataset_id
+            ),
+        ],
+    ) if dataset_id else None
+    chat_engine = index.as_chat_engine(
+        llm=llm,
+        chat_mode=ChatMode.BEST,
+        similarity_top_k=config.retrieve.topk,
+        node_postprocessors=[
+            # TrimOverlapped(mongo=mongo_client(), target_metadata_key="window"),
+            # WindowTextLoader(mongo=mongo_client(), target_metadata_key="window"),
+            # MetadataReplacementPostProcessor(target_metadata_key="window"),
 
-        # 过滤检索结果时使用的最低相似度阈值
-        SimilarityPostprocessor(similarity_cutoff=config.retrieve.similarity_cutoff),
+            # 过滤检索结果时使用的最低相似度阈值
+            SimilarityPostprocessor(similarity_cutoff=config.retrieve.similarity_cutoff),
 
-        # 对检索结果进行重排，返回语义上相关度最高的结果。
-        rerank_processor,
-    ], 
-    # text_qa_template=ChatPromptTemplate(message_templates=[
-    #     ChatMessage(role=MessageRole.SYSTEM, content=CHAT_SYSTEM_PROMPT_STR),
-    #     ChatMessage(role=MessageRole.USER, content=CHAT_QA_PROMPT_TMPL_STR),
-    # ]),
-    # refine_template=ChatPromptTemplate(message_templates=[
-    #     ChatMessage(role=MessageRole.SYSTEM, content=CHAT_SYSTEM_PROMPT_STR),
-    #     ChatMessage(role=MessageRole.USER, content=CHAT_REFINE_QA_PROMPT_TMPL_STR),
-    # ]),
-)
+            # 对检索结果进行重排，返回语义上相关度最高的结果。
+            rerank_processor,
+        ], 
+        # text_qa_template=ChatPromptTemplate(message_templates=[
+        #     ChatMessage(role=MessageRole.SYSTEM, content=CHAT_SYSTEM_PROMPT_STR),
+        #     ChatMessage(role=MessageRole.USER, content=CHAT_QA_PROMPT_TMPL_STR),
+        # ]),
+        # refine_template=ChatPromptTemplate(message_templates=[
+        #     ChatMessage(role=MessageRole.SYSTEM, content=CHAT_SYSTEM_PROMPT_STR),
+        #     ChatMessage(role=MessageRole.USER, content=CHAT_REFINE_QA_PROMPT_TMPL_STR),
+        # ]),
+        filters=filters,
+    )
+    return chat_engine
 
 @app.before_server_start
 async def setup_mayim(app: Sanic):
@@ -144,10 +159,13 @@ async def shutdown_mayim(app: Sanic):
 
 @app.post("/api/chat")
 async def chat_with_llm(request: Request, executor: ReviewRagPostgresExecutor):
+    dataset_id = int(request.json['datasetId']) if request.json['datasetId'] else 0
     query = request.json['query']
     history = request.json['history'] or []
     normalized_history = [ChatMessage.from_str(h['message'], h['role']) for h in history]
     response = await request.respond(content_type="text/plain; charset=utf-8")
+
+    chat_engine = create_chat_engine_with_dataset_id(dataset_id)
     chat_response = chat_engine.stream_chat(query, normalized_history)
     for token in chat_response.response_gen:
         await response.send(token)
@@ -339,17 +357,19 @@ async def create_new_file_handler(request: Request, executor: ReviewRagPostgresE
     )
 
     if local_file:
-        ChunksThread(kb_doc_id=kb_document.id, executor=executor, local_file_path=local_file).start()
+        ChunksThread(kb_dataset_id=int(dataset_id), kb_doc_id=kb_document.id, executor=executor, local_file_path=local_file).start()
 
     return json({"file": kb_file.__dict__}, default=str)
 
 class ChunksThread(Thread):
+    kb_dataset_id: int
     kb_doc_id: int
     local_file_path: str
     executor: ReviewRagPostgresExecutor
 
-    def __init__(self, kb_doc_id, executor, local_file_path):
+    def __init__(self, kb_dataset_id, kb_doc_id, executor, local_file_path):
         super().__init__()
+        self.kb_dataset_id = kb_dataset_id
         self.kb_doc_id = kb_doc_id
         self.executor = executor
         self.local_file_path = local_file_path
@@ -373,7 +393,7 @@ class ChunksThread(Thread):
                     status='Created',
                     hit_num=0,
                     is_active=True,
-                    dataset_id=0,
+                    dataset_id=self.kb_dataset_id,
                     document_id=self.kb_doc_id,
                     creator='',
                     create_time=datetime.now(),
@@ -415,7 +435,7 @@ class ChunksThread(Thread):
                 is_active=True,
                 embedding=id_to_embed_map[str(chunk.id)],
                 meta={"text": chunk.content},
-                dataset_id=0,
+                dataset_id=self.kb_dataset_id,
                 document_id=self.kb_doc_id,
                 paragraph_id=chunk.id,
                 search_vector='',
