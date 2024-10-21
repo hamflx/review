@@ -33,6 +33,7 @@ from llama_index.core.schema import TextNode
 from llama_index.core import VectorStoreIndex
 from llama_index.llms.dashscope import DashScope
 from llama_index.core.postprocessor import SentenceTransformerRerank
+from llama_index.core.chat_engine.types import ChatMode
 
 id_gen = SnowflakeGenerator(100)
 
@@ -96,8 +97,9 @@ vector_store = ReviewRagPGVectorStore.from_params(
     embed_dim=config.embedding.dim  # openai embedding dimension
 )
 index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
-query_engine = index.as_query_engine(
+chat_engine = index.as_chat_engine(
     llm=llm,
+    chat_mode=ChatMode.BEST,
     similarity_top_k=config.retrieve.topk,
     node_postprocessors=[
         # TrimOverlapped(mongo=mongo_client(), target_metadata_key="window"),
@@ -134,8 +136,11 @@ async def shutdown_mayim(app: Sanic):
 @app.post("/api/chat")
 async def chat_with_llm(request: Request, executor: ReviewRagPostgresExecutor):
     query = request.json['query']
-    response = query_engine.query(query)
-    return json({"message": f"{response}"}, default=str)
+    response = await request.respond(content_type="text/event-stream; charset=utf-8")
+    chat_response = chat_engine.stream_chat(query)
+    for token in chat_response.response_gen:
+        await response.send(token)
+    await response.eof()
 
 @app.get("/api/dataset")
 async def fetch_all_dataset_handler(request: Request, executor: ReviewRagPostgresExecutor):

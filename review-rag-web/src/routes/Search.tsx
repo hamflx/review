@@ -1,5 +1,4 @@
-import { ChatApi, ChatResponse } from "@/apis/chat"
-import { CommonResponse, isError } from "@/apis/common"
+import { ChatApi } from "@/apis/chat"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -42,6 +41,17 @@ export const Search = () => {
   })
 
   const [historyMessages, setHistoryMessages] = useState<MessageModel[]>([])
+  const appendLastMessage = (msg: string) => setHistoryMessages(historyMessages => {
+    console.log('append', msg)
+    const copy = historyMessages.map(m => ({...m}))
+    let lastAssistantMsg = copy[copy.length - 1]
+    if (!lastAssistantMsg || lastAssistantMsg.role === 'user') {
+      lastAssistantMsg = {message: '', role: 'assistant'}
+      copy.push(lastAssistantMsg)
+    }
+    lastAssistantMsg.message += msg
+    return copy
+  })
 
   const onSubmitForm = async (values: z.infer<typeof formSchema>) => {
     const newMessage = {
@@ -49,17 +59,21 @@ export const Search = () => {
       role: 'user',
     } as const
     setHistoryMessages([...historyMessages, newMessage])
-    const response: CommonResponse<ChatResponse> = await fetch(ChatApi, {
+    const response = await fetch(ChatApi, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(values),
-    }).then(r => r.json())
-    if (isError(response)) {
-      alert(response.error)
-    } else {
-      setHistoryMessages([...historyMessages, newMessage, {message: response.message, role: 'assistant'}])
+    })
+    const reader = response.body?.getReader()
+    const decoder = new TextDecoder()
+    while (true) {
+      const {done, value} = (await reader?.read()) ?? {}
+      if (done) {
+        break
+      }
+      appendLastMessage(decoder.decode(value))
     }
   }
   const lastMessage = useCallback((element: HTMLDivElement) => {
@@ -78,7 +92,7 @@ export const Search = () => {
       <CardContent className="flex-1 flex flex-col gap-4 overflow-auto">
         {historyMessages.map((m, index) => {
           return (
-            <div ref={index+1 === historyMessages.length ? lastMessage : null} className={`space-y-2 flex flex-col ${m.role === 'user' ? 'place-self-end items-end' : 'place-self-start items-start'}`}>
+            <div ref={index+1 === historyMessages.length ? lastMessage : null} key={index} className={`space-y-2 flex flex-col ${m.role === 'user' ? 'place-self-end items-end' : 'place-self-start items-start'}`}>
               <Label>{m.role}</Label>
               <Card>
                 <CardContent className="flex-1 p-2">
