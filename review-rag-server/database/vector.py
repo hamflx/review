@@ -1,3 +1,4 @@
+from loguru import logger
 import sqlalchemy
 
 from typing import Any, Dict, List, Optional, Type, Union
@@ -80,9 +81,8 @@ class ReviewRagPGVectorStore(PGVectorStore):
         metadata_filters: Optional[MetadataFilters] = None,
         **kwargs: Any,
     ) -> List[DBEmbeddingRow]:
+        logger.info("Querying...")
         stmt = self._build_query(embedding, limit, metadata_filters)
-        print("stmt")
-        print(stmt)
         with self._session() as session, session.begin():
             from sqlalchemy import text
 
@@ -104,7 +104,7 @@ class ReviewRagPGVectorStore(PGVectorStore):
             res = session.execute(
                 stmt,
             )
-            return [
+            rows = [
                 DBEmbeddingRow(
                     node_id=str(item.id),
                     text='',
@@ -113,6 +113,8 @@ class ReviewRagPGVectorStore(PGVectorStore):
                 )
                 for item in res.all()
             ]
+            logger.info(f"Got {len(rows)} items...")
+            return rows
 
 def get_data_model(
     base: Type,

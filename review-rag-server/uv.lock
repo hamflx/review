@@ -1054,6 +1054,19 @@ wheels = [
 ]
 
 [[package]]
+name = "llama-index-postprocessor-dashscope-rerank"
+version = "0.2.0"
+source = { registry = "https://pypi.python.org/simple" }
+dependencies = [
+    { name = "dashscope" },
+    { name = "llama-index-core" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9c/4d/c34e1b031029f6597ae8b08bf5d546f59cf1570d6e280dd1a1c2053a6ffd/llama_index_postprocessor_dashscope_rerank-0.2.0.tar.gz", hash = "sha256:18d112cad6b73ad658d32e1ad0bad9ce580caccdfd6262f21e12ea791e72f362", size = 3298 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/97/a2/249b25d6dc3e65d97464efb949c2b218176fde96b0cd3d429a22434f7885/llama_index_postprocessor_dashscope_rerank-0.2.0-py3-none-any.whl", hash = "sha256:ca1e06c7425e2eade6c197eba2d286881e6495a3e90dbaedfe6ce9ae247f7bb0", size = 3712 },
+]
+
+[[package]]
 name = "llama-index-program-openai"
 version = "0.2.0"
 source = { registry = "https://pypi.python.org/simple" }
@@ -2317,6 +2330,7 @@ dependencies = [
     { name = "llama-index" },
     { name = "llama-index-embeddings-huggingface" },
     { name = "llama-index-llms-dashscope" },
+    { name = "llama-index-postprocessor-dashscope-rerank" },
     { name = "llama-index-readers-pdf-marker" },
     { name = "llama-index-vector-stores-postgres" },
     { name = "loguru" },
@@ -2341,6 +2355,7 @@ requires-dist = [
     { name = "llama-index", specifier = ">=0.11.19" },
     { name = "llama-index-embeddings-huggingface", specifier = ">=0.3.1" },
     { name = "llama-index-llms-dashscope", specifier = ">=0.2.2" },
+    { name = "llama-index-postprocessor-dashscope-rerank", specifier = ">=0.2.0" },
     { name = "llama-index-readers-pdf-marker", specifier = ">=0.2.0" },
     { name = "llama-index-vector-stores-postgres", specifier = ">=0.2.6" },
     { name = "loguru", specifier = ">=0.7.2" },

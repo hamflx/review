@@ -25,6 +25,7 @@ dependencies = [
     "typed-settings>=24.5.0",
     "sqlalchemy>=2.0.36",
     "llama-index-llms-dashscope>=0.2.2",
+    "llama-index-postprocessor-dashscope-rerank>=0.2.0",
 ]
 
 [[tool.uv.index]]

@@ -1,3 +1,4 @@
+from typing import Optional
 import typed_settings as ts
 
 @ts.settings
@@ -13,10 +14,11 @@ class ReviewRragEmbeddingConfig:
 @ts.settings
 class ReviewRragRetrieveConfig:
     topk: int
+    similarity_cutoff: float
 
 @ts.settings
 class ReviewRragRerankConfig:
-    name: str
+    name: Optional[str]
     topk: int
 
 @ts.settings

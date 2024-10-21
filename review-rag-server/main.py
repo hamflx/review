@@ -26,6 +26,7 @@ from sentence_splitter import SentenceSplitter, split_text_into_sentences
 from oss2 import ProviderAuthV4, Bucket
 from oss2.credentials import EnvironmentVariableCredentialsProvider
 from llama_index.readers.pdf_marker import PDFMarkerReader
+from llama_index.core.postprocessor import SimilarityPostprocessor
 from utils.markdown import extract_elements, group_elements_by_title
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core.indices.utils import embed_nodes
@@ -34,6 +35,7 @@ from llama_index.core import VectorStoreIndex
 from llama_index.llms.dashscope import DashScope
 from llama_index.core.postprocessor import SentenceTransformerRerank
 from llama_index.core.chat_engine.types import ChatMode
+from llama_index.postprocessor.dashscope_rerank import DashScopeRerank
 
 id_gen = SnowflakeGenerator(100)
 
@@ -97,6 +99,10 @@ vector_store = ReviewRagPGVectorStore.from_params(
     embed_dim=config.embedding.dim  # openai embedding dimension
 )
 index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
+if config.rerank.name:
+    rerank_processor = SentenceTransformerRerank(model=config.rerank.name, top_n=config.rerank.topk)
+else:
+    rerank_processor = DashScopeRerank(top_n=config.rerank.topk, model="gte-rerank")
 chat_engine = index.as_chat_engine(
     llm=llm,
     chat_mode=ChatMode.BEST,
@@ -105,10 +111,12 @@ chat_engine = index.as_chat_engine(
         # TrimOverlapped(mongo=mongo_client(), target_metadata_key="window"),
         # WindowTextLoader(mongo=mongo_client(), target_metadata_key="window"),
         # MetadataReplacementPostProcessor(target_metadata_key="window"),
-        SentenceTransformerRerank(
-            model=config.rerank.name,
-            top_n=config.rerank.topk
-        ),
+
+        # 过滤检索结果时使用的最低相似度阈值
+        SimilarityPostprocessor(similarity_cutoff=config.retrieve.similarity_cutoff),
+
+        # 对检索结果进行重排，返回语义上相关度最高的结果。
+        rerank_processor,
     ], 
     # text_qa_template=ChatPromptTemplate(message_templates=[
     #     ChatMessage(role=MessageRole.SYSTEM, content=CHAT_SYSTEM_PROMPT_STR),
