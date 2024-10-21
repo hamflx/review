@@ -6,7 +6,7 @@ import { Outlet } from 'react-router-dom'
 function App() {
   return (
     <div>
-      <SidebarProvider>
+      <SidebarProvider className='h-dvh'>
         <AppSidebar/>
         <Outlet></Outlet>
       </SidebarProvider>

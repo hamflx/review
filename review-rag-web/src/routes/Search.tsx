@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { useState } from "react"
+import { useCallback, useState } from "react"
 
 const formSchema = z.object({
   query: z.string().min(1).max(500),
@@ -62,6 +62,11 @@ export const Search = () => {
       setHistoryMessages([...historyMessages, newMessage, {message: response.message, role: 'assistant'}])
     }
   }
+  const lastMessage = useCallback((element: HTMLDivElement) => {
+    if (element) {
+      element.scrollIntoView()
+    }
+  }, [])
   return (
     <Card className="flex flex-col flex-1 m-2 ml-0">
       <CardHeader>
@@ -70,10 +75,10 @@ export const Search = () => {
           <Label>在您选择的知识库中检索需要的内容。</Label>
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col gap-4">
-        {historyMessages.map(m => {
+      <CardContent className="flex-1 flex flex-col gap-4 overflow-auto">
+        {historyMessages.map((m, index) => {
           return (
-            <div className={`space-y-2 flex flex-col ${m.role === 'user' ? 'place-self-end items-end' : 'place-self-start items-start'}`}>
+            <div ref={index+1 === historyMessages.length ? lastMessage : null} className={`space-y-2 flex flex-col ${m.role === 'user' ? 'place-self-end items-end' : 'place-self-start items-start'}`}>
               <Label>{m.role}</Label>
               <Card>
                 <CardContent className="flex-1 p-2">

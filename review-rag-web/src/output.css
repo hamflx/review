@@ -851,6 +851,10 @@ body {
   height: 100svh;
 }
 
+.h-dvh {
+  height: 100dvh;
+}
+
 .max-h-96 {
   max-height: 24rem;
 }
@@ -1250,6 +1254,10 @@ body {
 
 .text-center {
   text-align: center;
+}
+
+.text-right {
+  text-align: right;
 }
 
 .align-middle {
