@@ -1,19 +1,24 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { createBrowserRouter, Outlet, RouterProvider } from 'react-router-dom'
-import './index.css'
+import { createBrowserRouter, Navigate, Outlet, RouterProvider } from 'react-router-dom'
+import './index.scss'
 import { CreateFile } from './routes/CreateFile.tsx'
 import App from './App.tsx'
 import { Libraries } from './routes/Libraries.tsx'
 import { Search } from './routes/Search.tsx'
 import { CreateLibray } from './routes/CreateLibray.tsx'
 import { Documents } from './routes/Documents.tsx'
+import './styles/unreset.scss'
 
 const router = createBrowserRouter([
   {
     path: '/',
     element: <App/>,
     children: [
+      {
+        path: '',
+        element: <Navigate to="/search"/>
+      },
       {
         path: 'search',
         element: <Search/>,

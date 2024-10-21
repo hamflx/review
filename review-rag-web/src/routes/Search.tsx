@@ -21,9 +21,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { useCallback, useState } from "react"
+import { useRef, useState } from "react"
 import { FetchDatasetApi, MaxKbDataset } from "@/apis/files"
 import useSWR from "swr"
+import Markdown from 'react-markdown'
 
 const formSchema = z.object({
   query: z.string().min(1).max(500),
@@ -37,6 +38,7 @@ interface MessageModel {
 export const Search = () => {
   const { data: datasetList } = useSWR<MaxKbDataset[]>(FetchDatasetApi, () => fetch(FetchDatasetApi).then(r => r.json()))
   const [selectedDatasetId, setSelectedDatasetId] = useState('0')
+  const [chatPending, setChatPending] = useState(false)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -47,7 +49,6 @@ export const Search = () => {
 
   const [historyMessages, setHistoryMessages] = useState<MessageModel[]>([])
   const appendLastMessage = (msg: string) => setHistoryMessages(historyMessages => {
-    console.log('append', msg)
     const copy = historyMessages.map(m => ({...m}))
     let lastAssistantMsg = copy[copy.length - 1]
     if (!lastAssistantMsg || lastAssistantMsg.role === 'user') {
@@ -64,33 +65,49 @@ export const Search = () => {
       role: 'user',
     } as const
     setHistoryMessages([...historyMessages, newMessage])
-    const params = {
-      ...values,
-      datasetId: selectedDatasetId,
-      history: historyMessages,
-    }
-    const response = await fetch(ChatApi, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(params),
-    })
-    const reader = response.body?.getReader()
-    const decoder = new TextDecoder()
-    while (true) {
-      const {done, value} = (await reader?.read()) ?? {}
-      if (done) {
-        break
+    setChatPending(true)
+    form.reset()
+    try {
+      const params = {
+        ...values,
+        datasetId: selectedDatasetId,
+        history: historyMessages,
       }
-      appendLastMessage(decoder.decode(value))
+      const response = await fetch(ChatApi, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params),
+      })
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      while (true) {
+        const {done, value} = (await reader?.read()) ?? {}
+        if (done) {
+          break
+        }
+        appendLastMessage(decoder.decode(value))
+        scrollIfNeeded()
+      }
+    } finally {
+      setChatPending(false)
     }
   }
-  const lastMessage = useCallback((element: HTMLDivElement) => {
-    if (element) {
-      element.scrollIntoView()
+  const scrollContainer = useRef<HTMLDivElement | null>(null)
+  // 自动滚动容器，避免新出现的文字看不见，自动将其滚动到可视区域。
+  // 同时，为了避免自动滚动导致用户无法锚定一个位置，这里仅在滚动位置靠近底部的时候启用。
+  const scrollIfNeeded = () => {
+    const el = scrollContainer.current
+    const threshold = 50
+    if (el) {
+      if (el.scrollHeight - (el.scrollTop + el.offsetHeight) <= threshold) {
+        setTimeout(() => {
+          el.scrollTop = el.scrollHeight - el.offsetHeight
+        })
+      }
     }
-  }, [])
+  }
   return (
     <Card className="flex flex-col flex-1 m-2 ml-0">
       <CardHeader>
@@ -99,14 +116,14 @@ export const Search = () => {
           <Label>在您选择的知识库中检索需要的内容。</Label>
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col gap-4 overflow-auto">
+      <CardContent ref={scrollContainer} className="flex-1 flex flex-col gap-4 overflow-auto">
         {historyMessages.map((m, index) => {
           return (
-            <div ref={index+1 === historyMessages.length ? lastMessage : null} key={index} className={`space-y-2 flex flex-col ${m.role === 'user' ? 'place-self-end items-end' : 'place-self-start items-start'}`}>
+            <div key={index} className={`space-y-2 flex flex-col ${m.role === 'user' ? 'place-self-end items-end' : 'place-self-start items-start'}`}>
               <Label>{m.role}</Label>
               <Card>
-                <CardContent className="flex-1 p-2">
-                  <div>{m.message}</div>
+                <CardContent className="flex-1 py-2 px-4">
+                  <Markdown className="markdown-container unreset">{m.message}</Markdown>
                 </CardContent>
               </Card>
             </div>
@@ -114,6 +131,7 @@ export const Search = () => {
         })}
       </CardContent>
       <CardFooter className="flex-col items-start gap-4">
+        {chatPending && <Label className="place-self-center">正在生成……</Label>}
         <div className="flex flex-col gap-4">
           <Label>选择知识库</Label>
           <Select defaultValue={selectedDatasetId} onValueChange={datasetId => setSelectedDatasetId(datasetId)}>
@@ -146,7 +164,7 @@ export const Search = () => {
                 </FormItem>
               )}
             />
-            <Button type="submit">发送</Button>
+            <Button type="submit" disabled={chatPending}>发送</Button>
           </form>
         </Form>
       </CardFooter>
