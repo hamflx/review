@@ -1,5 +1,5 @@
 [llm]
-name = "qwen"
+name = "qwen-max"
 temperature = 0.01
 
 [embedding]

@@ -16,7 +16,6 @@ from mayim import Mayim
 from sanic import Sanic, Request, json
 from mayim.sql.postgres.executor import PostgresExecutor
 from mayim.sql.postgres.interface import PostgresPool
-from llms.QwenLLM import QwenUnofficial
 from models.max_kb_dataset import MaxKbDataset
 from models.max_kb_document import MaxKbDocument
 from models.max_kb_embedding import MaxKbEmbedding
@@ -32,6 +31,7 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core.indices.utils import embed_nodes
 from llama_index.core.schema import TextNode
 from llama_index.core import VectorStoreIndex
+from llama_index.llms.dashscope import DashScope
 from llama_index.core.postprocessor import SentenceTransformerRerank
 
 id_gen = SnowflakeGenerator(100)
@@ -83,7 +83,7 @@ embed_model = HuggingFaceEmbedding(model_name=config.embedding.name)
 # Settings.embed_model = embed_model
 
 logger.info("Building LLM...")
-llm = QwenUnofficial(temperature=config.llm.temperature, model=config.llm.name, max_tokens=2048)
+llm = DashScope(model_name=config.llm.name, api_key=os.getenv("DASHSCOPE_API_KEY"))
 # Settings.llm = embed_model
 
 vector_store = ReviewRagPGVectorStore.from_params(
