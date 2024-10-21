@@ -1,6 +1,7 @@
 from database.vector import ReviewRagPGVectorStore
 from utils.config import config
 
+import os
 import hashlib
 import asyncio
 
@@ -237,7 +238,9 @@ async def create_new_file_handler(request: Request, executor: ReviewRagPostgresE
         bucket.put_object(str(kb_file_id), file.body)
 
         filename, file_ext = splitext(file.name)
-        local_file = '%d%s' % (kb_file_id, file_ext)
+        if not os.path.exists('caches'):
+            os.mkdir('caches')
+        local_file = os.path.join('caches', '%d%s' % (kb_file_id, file_ext))
         with open(local_file, 'wb+') as f:
             f.write(file.body)
 
