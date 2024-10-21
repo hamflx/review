@@ -1,4 +1,5 @@
 from database.vector import ReviewRagPGVectorStore
+from storage import get_storage_bucket
 from utils.config import config
 
 import os
@@ -7,7 +8,7 @@ import asyncio
 
 from datetime import datetime
 from json import dumps
-from typing import List, Optional
+from typing import Any, List, Optional
 from threading import Thread
 from os.path import splitext
 
@@ -23,8 +24,6 @@ from models.max_kb_file import MaxKbFile
 from models.max_kb_paragraph import MaxKbParagraph
 from snowflake import SnowflakeGenerator
 from sentence_splitter import SentenceSplitter, split_text_into_sentences
-from oss2 import ProviderAuthV4, Bucket
-from oss2.credentials import EnvironmentVariableCredentialsProvider
 from llama_index.readers.pdf_marker import PDFMarkerReader
 from llama_index.core.postprocessor import SimilarityPostprocessor
 from utils.markdown import extract_elements, group_elements_by_title
@@ -82,33 +81,7 @@ class ReviewRagPostgresExecutor(PostgresExecutor):
         ...
 
 app = Sanic("ReviewRagServer")
-oss_auth = ProviderAuthV4(EnvironmentVariableCredentialsProvider())
-endpoint = 'https://oss-cn-nanjing.aliyuncs.com'
-region = 'cn-nanjing'
-bucket = Bucket(oss_auth, endpoint=endpoint, bucket_name='review-rag', region=region)
 
-logger.info("Building embedding model...")
-embed_model = HuggingFaceEmbedding(model_name=config.embedding.name)
-# Settings.embed_model = embed_model
-
-logger.info("Building LLM...")
-llm = DashScope(model_name=config.llm.name, api_key=os.getenv("DASHSCOPE_API_KEY"))
-# Settings.llm = embed_model
-
-vector_store = ReviewRagPGVectorStore.from_params(
-    database="postgres",
-    host=config.database.host,
-    password=config.database.password,
-    port=str(config.database.port),
-    user=config.database.user,
-    table_name="max_kb_embedding",
-    embed_dim=config.embedding.dim  # openai embedding dimension
-)
-index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
-if config.rerank.name:
-    rerank_processor = SentenceTransformerRerank(model=config.rerank.name, top_n=config.rerank.topk)
-else:
-    rerank_processor = DashScopeRerank(top_n=config.rerank.topk, model="gte-rerank")
 def create_chat_engine_with_dataset_id(dataset_id: int):
     filters = MetadataFilters(
         filters=[
@@ -117,8 +90,8 @@ def create_chat_engine_with_dataset_id(dataset_id: int):
             ),
         ],
     ) if dataset_id else None
-    chat_engine = index.as_chat_engine(
-        llm=llm,
+    chat_engine = app.ctx.index.as_chat_engine(
+        llm=app.ctx.llm,
         chat_mode=ChatMode.BEST,
         similarity_top_k=config.retrieve.topk,
         node_postprocessors=[
@@ -130,7 +103,7 @@ def create_chat_engine_with_dataset_id(dataset_id: int):
             SimilarityPostprocessor(similarity_cutoff=config.retrieve.similarity_cutoff),
 
             # 对检索结果进行重排，返回语义上相关度最高的结果。
-            rerank_processor,
+            app.ctx.rerank_processor,
         ], 
         # text_qa_template=ChatPromptTemplate(message_templates=[
         #     ChatMessage(role=MessageRole.SYSTEM, content=CHAT_SYSTEM_PROMPT_STR),
@@ -146,6 +119,31 @@ def create_chat_engine_with_dataset_id(dataset_id: int):
 
 @app.before_server_start
 async def setup_mayim(app: Sanic):
+    app.ctx.bucket = get_storage_bucket()
+
+    logger.info("Building embedding model...")
+    embed_model = HuggingFaceEmbedding(model_name=config.embedding.name)
+    app.ctx.embed_model = embed_model
+
+    logger.info("Building LLM...")
+    app.ctx.llm = DashScope(model_name=config.llm.name, api_key=os.getenv("DASHSCOPE_API_KEY"))
+
+    vector_store = ReviewRagPGVectorStore.from_params(
+        database="postgres",
+        host=config.database.host,
+        password=config.database.password,
+        port=str(config.database.port),
+        user=config.database.user,
+        table_name="max_kb_embedding",
+        embed_dim=config.embedding.dim  # openai embedding dimension
+    )
+    app.ctx.index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
+    if config.rerank.name:
+        app.ctx.rerank_processor = SentenceTransformerRerank(model=config.rerank.name, top_n=config.rerank.topk)
+    else:
+        app.ctx.rerank_processor = DashScopeRerank(top_n=config.rerank.topk, model="gte-rerank")
+
+    logger.info("Connecting to postgres...")
     executor = ReviewRagPostgresExecutor()
     app.ctx.pool = PostgresPool(dsn="postgres://%s:%s@%s:%d" % (config.database.user, config.database.password, config.database.host, config.database.port))
     await app.ctx.pool.open()
@@ -269,7 +267,7 @@ async def create_new_file_handler(request: Request, executor: ReviewRagPostgresE
     if not kb_file:
         kb_file_id = next(id_gen)
 
-        bucket.put_object(str(kb_file_id), file.body)
+        app.ctx.bucket.put_object(str(kb_file_id), file.body)
 
         filename, file_ext = splitext(file.name)
         if not os.path.exists('caches'):
@@ -357,24 +355,30 @@ async def create_new_file_handler(request: Request, executor: ReviewRagPostgresE
     )
 
     if local_file:
-        ChunksThread(kb_dataset_id=int(dataset_id), kb_doc_id=kb_document.id, executor=executor, local_file_path=local_file).start()
+        EmbeddingThread(kb_dataset_id=int(dataset_id), kb_doc_id=kb_document.id, executor=executor, local_file_path=local_file, embed_model=app.ctx.embed_model).start()
+    else:
+        logger.info("文档对应的文件已经存在，跳过向量化。")
 
-    return json({"file": kb_file.__dict__}, default=str)
+    return json({"file": kb_document.__dict__}, default=str)
 
-class ChunksThread(Thread):
+class EmbeddingThread(Thread):
     kb_dataset_id: int
     kb_doc_id: int
     local_file_path: str
+    embed_model: Any
     executor: ReviewRagPostgresExecutor
 
-    def __init__(self, kb_dataset_id, kb_doc_id, executor, local_file_path):
+    def __init__(self, kb_dataset_id, kb_doc_id, executor, local_file_path, embed_model):
         super().__init__()
         self.kb_dataset_id = kb_dataset_id
         self.kb_doc_id = kb_doc_id
         self.executor = executor
         self.local_file_path = local_file_path
+        self.embed_model = embed_model
 
     async def run_async(self):
+        logger.info(f"开始向量化文档【{self.local_file_path}】")
+
         reader = PDFMarkerReader()
         doc = reader.load_data(self.local_file_path)[0]
 
@@ -426,7 +430,7 @@ class ChunksThread(Thread):
         await insert_paragraphs(chunk_list)
 
         text_nodes = [TextNode(id_=str(chunk.id), text=chunk.content) for chunk in chunk_list]
-        id_to_embed_map = embed_nodes(text_nodes, embed_model, show_progress=True)
+        id_to_embed_map = embed_nodes(text_nodes, self.embed_model, show_progress=True)
         for chunk in chunk_list:
             kb_embedding = MaxKbEmbedding(
                 id=next(id_gen),
