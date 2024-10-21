@@ -1,7 +1,8 @@
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
-CREATE TABLE IF NOT EXISTS max_kb_file (
+DROP TABLE max_kb_file;
+CREATE TABLE max_kb_file (
   id BIGINT PRIMARY KEY,
   md5 VARCHAR(32) NOT NULL,
   filename VARCHAR(256) NOT NULL,
@@ -21,7 +22,8 @@ CREATE TABLE IF NOT EXISTS max_kb_file (
   tenant_id BIGINT NOT NULL DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS max_kb_dataset (
+DROP TABLE max_kb_dataset;
+CREATE TABLE max_kb_dataset (
   id BIGINT PRIMARY KEY,
   name VARCHAR NOT NULL,
   description VARCHAR,
@@ -37,7 +39,8 @@ CREATE TABLE IF NOT EXISTS max_kb_dataset (
   tenant_id BIGINT NOT NULL DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS max_kb_document (
+DROP TABLE max_kb_document;
+CREATE TABLE max_kb_document (
   id BIGINT NOT NULL,
   name VARCHAR NOT NULL,
   char_length INT NOT NULL,
@@ -57,7 +60,8 @@ CREATE TABLE IF NOT EXISTS max_kb_document (
   tenant_id BIGINT NOT NULL DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS max_kb_paragraph (
+DROP TABLE max_kb_paragraph;
+CREATE TABLE max_kb_paragraph (
   id BIGINT NOT NULL,
   content VARCHAR NOT NULL,
   title VARCHAR NOT NULL,
@@ -74,7 +78,8 @@ CREATE TABLE IF NOT EXISTS max_kb_paragraph (
   tenant_id BIGINT NOT NULL DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS max_kb_embedding (
+DROP TABLE max_kb_embedding;
+CREATE TABLE max_kb_embedding (
   id BIGINT PRIMARY KEY,
   source_id BIGINT NOT NULL,
   source_type VARCHAR NOT NULL,
