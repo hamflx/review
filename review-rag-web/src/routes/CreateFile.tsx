@@ -14,7 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
-// 最大允许上传 5MB 文件。
+// 最大允许上传 30MB 文件。
 const MEGA_BYTES = 1024 * 1024
 const MAX_FILE_SIZE = 30 * MEGA_BYTES
 
@@ -56,8 +56,8 @@ export const CreateFile = () => {
   return (
     <Card className="flex flex-col flex-1 m-2 ml-0 overflow-hidden">
       <CardHeader>
-        <CardTitle>知识库管理</CardTitle>
-        <CardDescription>您可以创建多个知识库，在与 AI 对话时，可以选择知识库上下文。</CardDescription>
+        <CardTitle>上传文档</CardTitle>
+        <CardDescription>选择 PDF 文件上传，上传后会自动开始向量化。</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-1">
         <Form {...form}>
@@ -72,7 +72,7 @@ export const CreateFile = () => {
                     <Input type="file" onChange={onFileChange}/>
                   </FormControl>
                   <FormDescription>
-                    This is your public display name.
+                    目前仅支持 PDF，且文件大小应在 30MB 以内。另外 vercel 部署会限制到 4.5MB。
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useForm } from "react-hook-form"
-import { Form, FormField, FormLabel, FormControl, FormDescription, FormMessage, FormItem } from "@/components/ui/form"
+import { Form, FormField, FormLabel, FormControl, FormMessage, FormItem } from "@/components/ui/form"
 import { CreateDatasetApi, MaxKbDataset } from "@/apis/files"
 import { CommonResponse, errorMessage } from "@/apis/common"
 import { z } from "zod"
@@ -63,10 +63,6 @@ export const CreateLibray = () => {
                   <FormControl>
                     <Input {...field}/>
                   </FormControl>
-                  <FormDescription>
-                    This is your public display name.
-                  </FormDescription>
-                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -79,9 +75,6 @@ export const CreateLibray = () => {
                   <FormControl>
                     <Input {...field}/>
                   </FormControl>
-                  <FormDescription>
-                    This is your public display name.
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

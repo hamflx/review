@@ -1,4 +1,5 @@
 import useSWR from "swr"
+import SpinnerIcon from '@/assets/spinner.svg?react'
 import { DeleteDatasetApi, FetchDatasetApi, MaxKbDataset } from "../apis/files"
 import { Link } from "react-router-dom"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -12,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
 
 const columns: ColumnDef<MaxKbDataset>[] = [
   {
@@ -81,8 +83,6 @@ export const Libraries = () => {
     getRowId: row => `${row.id}`,
     getCoreRowModel: getCoreRowModel(),
   })
-  if (error) return <div>failed to load</div>
-  if (isLoading) return <div>loading...</div>
 
   const deleteButton = (
     <Button variant="destructive" onClick={async () => {
@@ -98,6 +98,57 @@ export const Libraries = () => {
     }}>删除</Button>
   )
 
+  const tableElement = (
+    <Table>
+      <TableHeader>
+        {table.getHeaderGroups().map((headerGroup) => (
+          <TableRow key={headerGroup.id}>
+            {headerGroup.headers.map((header) => {
+              return (
+                <TableHead key={header.id}>
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                </TableHead>
+              )
+            })}
+          </TableRow>
+        ))}
+      </TableHeader>
+      <TableBody>
+        {table.getRowModel().rows?.length ? (
+          table.getRowModel().rows.map((row) => (
+            <TableRow
+              key={row.id}
+              data-state={row.getIsSelected() && "selected"}
+            >
+              {row.getVisibleCells().map((cell) => (
+                <TableCell key={cell.id}>
+                  {flexRender(
+                    cell.column.columnDef.cell,
+                    cell.getContext()
+                  )}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))
+        ) : (
+          <TableRow>
+            <TableCell
+              colSpan={columns.length}
+              className="h-24 text-center"
+            >
+              No results.
+            </TableCell>
+          </TableRow>
+        )}
+      </TableBody>
+    </Table>
+  )
+
   return (
     <Card className="flex flex-col flex-1 m-2 ml-0 overflow-hidden">
       <CardHeader>
@@ -111,54 +162,9 @@ export const Libraries = () => {
           </Link>
           {deleteButton}
         </div>
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  )
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  No results.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+        {isLoading && <SpinnerIcon/>}
+        {error && <Label>出错啦</Label>}
+        {!isLoading && !error && tableElement}
       </CardContent>
     </Card>
   )
