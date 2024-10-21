@@ -1,9 +1,27 @@
 # RAG
 
+演示地址：<https://review.hamflx.dev/search>（注：后端部署在内网上，由 vercel 转发到腾讯服务器再转发到 AutoDL 或本地机器上，网络可能不稳定）。
+
+## 演示
+
+视频如下，响应结果比较慢，中间有做剪辑处理。
+
+<div><video controls src="https://github.com/user-attachments/assets/d8227ba9-15ac-4f1e-8834-525c48a1ac84" muted="false"></video></div>
+
+## 特性
+
+- 支持通义千问或本地的 rerank 模型。
+- 支持通义千问大模型、OpenAI（未测试）。
+- 支持聊天上下文。
+- 支持滑动窗口优化检索结果。
+- 支持指定知识库或全部知识库检索。
+- 支持流式返回结果。
+
 ## 开发环境
 
 - Nushell
-- uv
+- uv，管理 python 包与项目。
+- bun，管理 npm 包与项目。
 
 ## 启动数据库
 
