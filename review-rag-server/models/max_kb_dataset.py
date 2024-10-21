@@ -15,3 +15,5 @@ class MaxKbDataset(BaseModel):
     update_time: datetime.datetime
     deleted: int
     tenant_id: int
+    completed: int
+    total: int

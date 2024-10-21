@@ -41,20 +41,16 @@ const columns: ColumnDef<MaxKbDocument>[] = [
     header: "文件名",
   },
   {
+    accessorKey: "status",
+    header: "状态",
+  },
+  {
     accessorKey: "create_time",
     header: "创建时间",
   },
   {
-    accessorKey: "creator",
-    header: "创建人",
-  },
-  {
     accessorKey: "update_time",
     header: "更新时间",
-  },
-  {
-    accessorKey: "updater",
-    header: "更新人",
   },
 ]
 

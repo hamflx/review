@@ -63,6 +63,8 @@ class ReviewRagPostgresExecutor(PostgresExecutor):
         ...
     async def update_document_content(self, status, char_length, files, meta, id) -> None:
         ...
+    async def update_document_status(self, status, id) -> None:
+        ...
     async def update_paragraph_status(self, status, id) -> None:
         ...
     async def update_dataset_mark_deleted(self, deleted, id) -> None:
@@ -197,6 +199,8 @@ async def create_dataset_handler(request: Request, executor: ReviewRagPostgresEx
         update_time=datetime.now(),
         deleted=0,
         tenant_id=0,
+        completed=0,
+        total=0,
     )
     await executor.insert_dataset(
         kb_dataset.id,
@@ -264,8 +268,10 @@ async def create_new_file_handler(request: Request, executor: ReviewRagPostgresE
 
     kb_file = await executor.select_file_by_md5(md5, len(file.body))
     local_file = ''
+    is_new_file = False
     if not kb_file:
         kb_file_id = next(id_gen)
+        is_new_file = True
 
         app.ctx.bucket.put_object(str(kb_file_id), file.body)
 
@@ -319,7 +325,7 @@ async def create_new_file_handler(request: Request, executor: ReviewRagPostgresE
         id = next(id_gen),
         name = file.name,
         char_length = 0,
-        status = 'Created',
+        status = 'Created' if is_new_file else 'Completed',
         is_active = True,
         type = 'markdown',
         meta = {},
@@ -354,7 +360,7 @@ async def create_new_file_handler(request: Request, executor: ReviewRagPostgresE
         kb_document.tenant_id,
     )
 
-    if local_file:
+    if is_new_file:
         EmbeddingThread(kb_dataset_id=int(dataset_id), kb_doc_id=kb_document.id, executor=executor, local_file_path=local_file, embed_model=app.ctx.embed_model).start()
     else:
         logger.info("文档对应的文件已经存在，跳过向量化。")
@@ -379,9 +385,12 @@ class EmbeddingThread(Thread):
     async def run_async(self):
         logger.info(f"开始向量化文档【{self.local_file_path}】")
 
+        await self.executor.update_document_status('Parsing', self.kb_doc_id)
+
         reader = PDFMarkerReader()
         doc = reader.load_data(self.local_file_path)[0]
 
+        await self.executor.update_document_status('Embedding', self.kb_doc_id)
 
         splitter = SentenceSplitter(language='en')
         chunk_list: List[MaxKbParagraph] = []
@@ -471,7 +480,7 @@ class EmbeddingThread(Thread):
             await self.executor.update_paragraph_status('Completed', chunk.id)
 
         await self.executor.update_document_content(
-            'Parsed',
+            'Completed',
             len(doc.text),
             dumps({"content": doc.text}),
             "{}",

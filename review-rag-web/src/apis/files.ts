@@ -49,6 +49,8 @@ export interface MaxKbDataset {
   update_time: string
   deleted: number
   tenant_id: number
+  completed: number
+  total: number
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type

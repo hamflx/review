@@ -45,16 +45,21 @@ const columns: ColumnDef<MaxKbDataset>[] = [
     header: "描述",
   },
   {
-    accessorKey: "creator",
-    header: "创建人",
+    accessorKey: 'completed',
+    header: '进度',
+    cell: ({row}) => {
+      return (
+        <div>
+          <span>{row.original.completed}</span>
+          <span>/</span>
+          <span>{row.original.total}</span>
+        </div>
+      )
+    }
   },
   {
     accessorKey: "update_time",
     header: "更新时间",
-  },
-  {
-    accessorKey: "updater",
-    header: "更新人",
   },
   {
     header: '管理文档',
