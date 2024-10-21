@@ -41,6 +41,7 @@ from llama_index.core.vector_stores import (
     MetadataFilters,
     FilterOperator,
 )
+from llama_index.core.postprocessor import MetadataReplacementPostProcessor
 
 id_gen = SnowflakeGenerator(100)
 
@@ -99,7 +100,7 @@ def create_chat_engine_with_dataset_id(dataset_id: int):
         node_postprocessors=[
             # TrimOverlapped(mongo=mongo_client(), target_metadata_key="window"),
             # WindowTextLoader(mongo=mongo_client(), target_metadata_key="window"),
-            # MetadataReplacementPostProcessor(target_metadata_key="window"),
+            MetadataReplacementPostProcessor(target_metadata_key="window"),
 
             # 过滤检索结果时使用的最低相似度阈值
             SimilarityPostprocessor(similarity_cutoff=config.retrieve.similarity_cutoff),
@@ -393,15 +394,20 @@ class EmbeddingThread(Thread):
         await self.executor.update_document_status('Embedding', self.kb_doc_id)
 
         splitter = SentenceSplitter(language='en')
-        chunk_list: List[MaxKbParagraph] = []
+        chunk_list: List[tuple[str, MaxKbParagraph]] = []
         groups = group_elements_by_title(extract_elements(doc.text))
         for g in groups:
             block_text = str.join('\n', [str(el.element) for el in g.elements])
             text_chunks = splitter.split(block_text)
-            for chunk in text_chunks:
+            for i, chunk in enumerate(text_chunks):
+                window_chunks = text_chunks[
+                    max(0, i - config.chunk.window_size):
+                    min(i + config.chunk.window_size + 1, len(text_chunks))
+                ]
+                window_text = ' '.join(window_chunks)
                 kb_paragraph = MaxKbParagraph(
                     id=next(id_gen),
-                    content=chunk,
+                    content=window_text,
                     title=g.title or '',
                     status='Created',
                     hit_num=0,
@@ -415,42 +421,37 @@ class EmbeddingThread(Thread):
                     deleted=0,
                     tenant_id=0
                 )
-                chunk_list.append(kb_paragraph)
-
-        async def insert_paragraphs(chunk_list: List[MaxKbParagraph]):
-            for paragraph in chunk_list:
+                chunk_list.append((chunk, kb_paragraph))
                 await self.executor.insert_paragraph(
-                    paragraph.id,
-                    paragraph.content,
-                    paragraph.title,
-                    paragraph.status,
-                    paragraph.hit_num,
-                    paragraph.is_active,
-                    paragraph.dataset_id,
-                    paragraph.document_id,
-                    paragraph.creator,
-                    paragraph.create_time,
-                    paragraph.updater,
-                    paragraph.update_time,
-                    paragraph.deleted,
-                    paragraph.tenant_id,
+                    kb_paragraph.id,
+                    kb_paragraph.content,
+                    kb_paragraph.title,
+                    kb_paragraph.status,
+                    kb_paragraph.hit_num,
+                    kb_paragraph.is_active,
+                    kb_paragraph.dataset_id,
+                    kb_paragraph.document_id,
+                    kb_paragraph.creator,
+                    kb_paragraph.create_time,
+                    kb_paragraph.updater,
+                    kb_paragraph.update_time,
+                    kb_paragraph.deleted,
+                    kb_paragraph.tenant_id,
                 )
 
-        await insert_paragraphs(chunk_list)
-
-        text_nodes = [TextNode(id_=str(chunk.id), text=chunk.content) for chunk in chunk_list]
+        text_nodes = [TextNode(id_=str(kb_paragraph.id), text=chunk) for chunk, kb_paragraph in chunk_list]
         id_to_embed_map = embed_nodes(text_nodes, self.embed_model, show_progress=True)
-        for chunk in chunk_list:
+        for chunk, kb_paragraph in chunk_list:
             kb_embedding = MaxKbEmbedding(
                 id=next(id_gen),
-                source_id=chunk.id,
+                source_id=kb_paragraph.id,
                 source_type='paragraph',
                 is_active=True,
-                embedding=id_to_embed_map[str(chunk.id)],
-                meta={"text": chunk.content},
+                embedding=id_to_embed_map[str(kb_paragraph.id)],
+                meta={"window": kb_paragraph.content},
                 dataset_id=self.kb_dataset_id,
                 document_id=self.kb_doc_id,
-                paragraph_id=chunk.id,
+                paragraph_id=kb_paragraph.id,
                 search_vector='',
                 creator='',
                 create_time=datetime.now(),
@@ -477,7 +478,7 @@ class EmbeddingThread(Thread):
                 kb_embedding.deleted,
                 kb_embedding.tenant_id,
             )
-            await self.executor.update_paragraph_status('Completed', chunk.id)
+            await self.executor.update_paragraph_status('Completed', kb_paragraph.id)
 
         await self.executor.update_document_content(
             'Completed',

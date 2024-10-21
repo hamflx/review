@@ -7,6 +7,10 @@ class ReviewRragLLMConfig:
     temperature: float
 
 @ts.settings
+class ReviewRragChunkConfig:
+    window_size: int
+
+@ts.settings
 class ReviewRragEmbeddingConfig:
     name: str
     dim: int
@@ -32,6 +36,7 @@ class ReviewRragDatabaseConfig:
 @ts.settings
 class ReviewRragConfig:
     llm: ReviewRragLLMConfig
+    chunk: ReviewRragChunkConfig
     embedding: ReviewRragEmbeddingConfig
     retrieve: ReviewRragRetrieveConfig
     rerank: ReviewRragRerankConfig

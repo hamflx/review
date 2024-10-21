@@ -2,6 +2,9 @@
 name = "qwen-max"
 temperature = 0.01
 
+[chunk]
+window_size = 5
+
 [embedding]
 name = "BAAI/bge-base-zh-v1.5"
 dim = 768
