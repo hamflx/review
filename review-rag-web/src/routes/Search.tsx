@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { useCallback, useState } from "react"
+import { FetchDatasetApi, MaxKbDataset } from "@/apis/files"
+import useSWR from "swr"
 
 const formSchema = z.object({
   query: z.string().min(1).max(500),
@@ -33,6 +35,9 @@ interface MessageModel {
 }
 
 export const Search = () => {
+  const { data: datasetList } = useSWR<MaxKbDataset[]>(FetchDatasetApi, () => fetch(FetchDatasetApi).then(r => r.json()))
+  const [selectedDatasetId, setSelectedDatasetId] = useState(0)
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -59,12 +64,17 @@ export const Search = () => {
       role: 'user',
     } as const
     setHistoryMessages([...historyMessages, newMessage])
+    const params = {
+      ...values,
+      datasetId: selectedDatasetId,
+      history: historyMessages,
+    }
     const response = await fetch(ChatApi, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(values),
+      body: JSON.stringify(params),
     })
     const reader = response.body?.getReader()
     const decoder = new TextDecoder()
@@ -106,14 +116,19 @@ export const Search = () => {
       <CardFooter className="flex-col items-start gap-4">
         <div className="flex flex-col gap-4">
           <Label>选择知识库</Label>
-          <Select>
+          <Select value={`${selectedDatasetId}`} onValueChange={datasetId => setSelectedDatasetId(+datasetId)}>
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Theme" />
+              <SelectValue placeholder="选择知识库" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="light">Light</SelectItem>
-              <SelectItem value="dark">Dark</SelectItem>
-              <SelectItem value="system">System</SelectItem>
+              <SelectItem value="0">全部</SelectItem>
+              {
+                (datasetList || []).map(dataset => {
+                  return (
+                    <SelectItem value={`${dataset.id}`} key={dataset.id}>{dataset.name}</SelectItem>
+                  )
+                })
+              }
             </SelectContent>
           </Select>
         </div>

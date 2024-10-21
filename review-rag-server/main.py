@@ -36,6 +36,7 @@ from llama_index.llms.dashscope import DashScope
 from llama_index.core.postprocessor import SentenceTransformerRerank
 from llama_index.core.chat_engine.types import ChatMode
 from llama_index.postprocessor.dashscope_rerank import DashScopeRerank
+from llama_index.core.base.llms.types import ChatMessage
 
 id_gen = SnowflakeGenerator(100)
 
@@ -144,8 +145,10 @@ async def shutdown_mayim(app: Sanic):
 @app.post("/api/chat")
 async def chat_with_llm(request: Request, executor: ReviewRagPostgresExecutor):
     query = request.json['query']
-    response = await request.respond(content_type="text/event-stream; charset=utf-8")
-    chat_response = chat_engine.stream_chat(query)
+    history = request.json['history'] or []
+    normalized_history = [ChatMessage.from_str(h['message'], h['role']) for h in history]
+    response = await request.respond(content_type="text/plain; charset=utf-8")
+    chat_response = chat_engine.stream_chat(query, normalized_history)
     for token in chat_response.response_gen:
         await response.send(token)
     await response.eof()
