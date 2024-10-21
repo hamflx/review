@@ -1,5 +1,7 @@
 import { createProxyMiddleware } from 'http-proxy-middleware';
 
+export const maxDuration = 60
+
 export default function (req, res) {
     let target = ''
     // 代理目标地址
