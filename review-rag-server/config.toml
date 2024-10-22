@@ -7,16 +7,16 @@ temperature = 0.01
 window_size = 5
 
 [embedding]
-name = "BAAI/bge-base-zh-v1.5"
-dim = 768
+name = "BAAI/bge-large-en-v1.5"
+dim = 1024
 
 [rerank]
 name = "BAAI/bge-reranker-large"
-topk = 10
+topk = 15
 
 [retrieve]
-topk = 30
-similarity_cutoff = 0.4
+topk = 50
+similarity_cutoff = 0.3
 
 [database]
 host = "127.0.0.1"
